@@ -78,6 +78,9 @@ jobs:
         run: FW_ALLOW_NETWORK=1 node scripts/framework-builds.mjs
       - run: sudo apt-get update && sudo apt-get install -y chromium xvfb
       - run: python -m pip install playwright==1.55.0
+      - run: python -m pip install pillow==11.3.0
+      - name: Framework screenshot regression tests
+        run: python -m unittest discover -s tests -p test_browser_frameworks.py
       - name: Production browsers, SSR and hydration smoke
         run: xvfb-run -a python scripts/browser-frameworks.py
       - name: Framework evidence (never treat missing deps as PASS)
@@ -87,6 +90,7 @@ jobs:
           name: framework-build-evidence
           path: |
             framework-build-results.json
+            framework-browser-artifacts/
             examples/react/package-lock.json
             examples/nextjs/package-lock.json
           if-no-files-found: warn
