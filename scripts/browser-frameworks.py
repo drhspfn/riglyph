@@ -23,10 +23,13 @@ apps = [
 ]
 
 
-def image_stats(png):
+def image_stats(png, borders=(0, 0, 0, 0)):
     """Check the composited screenshot, not WebGL's transient drawing buffer."""
     with Image.open(io.BytesIO(png)) as image:
-        pixels = list(image.convert('RGBA').getdata())
+        left, top, right, bottom = borders
+        if left + right >= image.width or top + bottom >= image.height:
+            return {'opaquePixels': 0, 'contentPixels': 0}
+        pixels = list(image.convert('RGBA').crop((left, top, image.width - right, image.height - bottom)).getdata())
     opaque = [p for p in pixels if p[3] > 0]
     if not opaque:
         return {'opaquePixels': 0, 'contentPixels': 0}
@@ -95,8 +98,9 @@ def check_page(browser, name, port):
         while time.monotonic() < deadline:
             failures = scene_responses(responses, manifest_url)
             if not failures:
-                png = canvas.screenshot(omit_background=True, timeout=5000)
-                stats = image_stats(png)
+                png = canvas.screenshot(omit_background=True, scale='css', timeout=5000)
+                borders = canvas.evaluate("element => { const s = getComputedStyle(element); return ['Left','Top','Right','Bottom'].map(side => Math.ceil(parseFloat(s['border' + side + 'Width']) || 0)); }")
+                stats = image_stats(png, borders)
                 if stats['opaquePixels'] > 0 and stats['contentPixels'] >= 10:
                     break
             page.wait_for_timeout(200)

@@ -34,6 +34,15 @@ class FrameworkSmokeTests(unittest.TestCase):
         self.assertEqual(module.image_stats(
             png((0, 0, 0, 0), (0, 0, 0, 255)))['contentPixels'], 25)
 
+    def test_canvas_border_does_not_count_as_scene_content(self):
+        image = Image.new('RGBA', (20, 20), (255, 255, 255, 255))
+        for x in range(1, 19):
+            for y in range(1, 19):
+                image.putpixel((x, y), (0, 0, 0, 0))
+        output = io.BytesIO()
+        image.save(output, format='PNG')
+        self.assertEqual(module.image_stats(output.getvalue(), (1, 1, 1, 1))['opaquePixels'], 0)
+
     def test_only_missing_favicon_console_error_is_ignored(self):
         def message(url, text, kind='error'):
             return SimpleNamespace(type=kind, text=text, location={'url': url})
