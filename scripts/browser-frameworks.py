@@ -9,7 +9,7 @@ import time
 import urllib.request
 from collections import Counter
 from pathlib import Path
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from PIL import Image
 from playwright.sync_api import sync_playwright
@@ -57,6 +57,18 @@ def scene_responses(responses, manifest_url):
     return failures
 
 
+def console_error(message):
+    """Keep application errors; ignore only the browser's missing default favicon."""
+    if message.type != 'error':
+        return None
+    location = message.location.get('url', '')
+    if (urlparse(location).path == '/favicon.ico' and
+            message.text.startswith('Failed to load resource:') and
+            '404' in message.text):
+        return None
+    return f'{location}: {message.text}' if location else message.text
+
+
 def check_page(browser, name, port):
     page = browser.new_page(viewport={'width': 960, 'height': 720})
     responses = {}
@@ -65,7 +77,11 @@ def check_page(browser, name, port):
     png = None
     page.on('response', lambda response: responses.__setitem__(response.url, response))
     page.on('pageerror', lambda error: errors.append(str(error)))
-    page.on('console', lambda message: errors.append(message.text) if message.type == 'error' else None)
+    def on_console(message):
+        error = console_error(message)
+        if error:
+            errors.append(error)
+    page.on('console', on_console)
     page.on('requestfailed', lambda request: errors.append(f'{request.url}: {request.failure}'))
     manifest_url = f'http://127.0.0.1:{port}/assets/scene/manifest.json'
     try:

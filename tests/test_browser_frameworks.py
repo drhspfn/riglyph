@@ -34,6 +34,15 @@ class FrameworkSmokeTests(unittest.TestCase):
         self.assertEqual(module.image_stats(
             png((0, 0, 0, 0), (0, 0, 0, 255)))['contentPixels'], 25)
 
+    def test_only_missing_favicon_console_error_is_ignored(self):
+        def message(url, text, kind='error'):
+            return SimpleNamespace(type=kind, text=text, location={'url': url})
+        missing = 'Failed to load resource: the server responded with a status of 404 (Not Found)'
+        self.assertIsNone(module.console_error(message('http://localhost/favicon.ico', missing)))
+        self.assertIn('skeleton.ir.json', module.console_error(message('http://localhost/skeleton.ir.json', missing)))
+        self.assertIn('500', module.console_error(message('http://localhost/favicon.ico', 'Failed to load resource: 500')))
+        self.assertIn('boom', module.console_error(message('', 'boom')))
+
     def test_scene_requires_successful_ir_and_all_texture_pages(self):
         base = 'http://localhost/assets/scene/manifest.json'
         manifest = SimpleNamespace(ok=True, json=lambda: {
