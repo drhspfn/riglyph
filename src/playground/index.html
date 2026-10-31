@@ -1,0 +1,47 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Universal Skeleton IR Playground</title>
+<style>
+:root{font:14px/1.45 system-ui,sans-serif;color:#e3e9f3;background:#121621}*{box-sizing:border-box}body{margin:0;padding:22px;max-width:1400px;margin-inline:auto}
+h1{font-size:22px;margin:0 0 4px}p{color:#9ba8bd;margin-top:0}.layout{display:grid;grid-template-columns:290px minmax(0,1fr);gap:20px;margin-top:22px}
+.panel{background:#1c2331;border:1px solid #364256;border-radius:10px;padding:17px}label{display:block;margin:15px 0 6px;font-size:13px;color:#b9c7da}input,select,button{font:inherit;max-width:100%;color:#dfe8f4}
+input[type=file]{font-size:11px}input[type=range]{width:100%;accent-color:#63b7ff}input[type=checkbox]{width:auto}
+select,button{background:#303e53;border:1px solid #51627a;border-radius:5px;padding:7px 10px}button{cursor:pointer}button:hover{background:#46607f}
+.toolbar{display:flex;gap:6px;flex-wrap:wrap}.check{display:flex;align-items:center;gap:8px;margin:12px 0}.check label{margin:0}
+.viewport{position:relative;aspect-ratio:3/2;width:100%;background:#242a36;border:1px solid #414d5f;border-radius:9px;overflow:hidden;background-image:linear-gradient(45deg,#2d3441 25%,transparent 25%),linear-gradient(-45deg,#2d3441 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#2d3441 75%),linear-gradient(-45deg,transparent 75%,#2d3441 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0}
+.viewport canvas{width:100%;height:100%;position:absolute;inset:0}.viewport #overlay{pointer-events:none}.viewport #canvas{touch-action:none;cursor:grab}.viewport #canvas:active{cursor:grabbing}pre{white-space:pre-wrap;overflow:auto;word-break:break-word;font-size:12px;color:#bdd2ec}.status{font-size:12px;color:#96e7af}.error{color:#ff8e9a}.secondary{font-size:12px;color:#8795ac}
+@media(max-width:780px){.layout{grid-template-columns:1fr}.viewport{aspect-ratio:1/1}}
+</style></head><body>
+<h1>Universal Skeleton IR Playground</h1><p>Version-neutral runtime, CPU draw packets and WebGL2 preview. Import and validation are verified for the five private 4.1.23 fixtures; numerical and visual parity remain unverified.</p>
+<div class="layout"><section class="panel">
+<label for="irfile">Validated IR JSON</label><input id="irfile" type="file" accept=".json,application/json"><button id="demo" style="margin-top:8px">Open synthetic demo</button>
+<label for="textures">Texture pages (PNG, multiple)</label><input id="textures" type="file" accept="image/png" multiple>
+<label for="animation">Animation</label><select id="animation"><option value="">Setup pose</option></select>
+<label for="skin">Skin</label><select id="skin"><option value="">Default</option></select>
+<label for="time">Seek: <span id="timeval">0.000 s</span></label><input id="time" type="range" min="0" max="1" step="0.001" value="0">
+<div class="toolbar"><button id="play">Play</button><button id="pause">Pause</button><button id="restart">Restart</button></div>
+<h3>Playback & mixing</h3>
+<label for="speed">Speed <span id="speed-label">1.00×</span></label><input id="speed" type="range" min="0" max="3" step="0.05" value="1">
+<label for="speed-number">Exact speed (0–100×)</label><input id="speed-number" type="number" min="0" max="100" step="0.01" value="1" style="width:90px">
+<div class="toolbar" id="speed-presets"><button data-speed="0.25">0.25×</button><button data-speed="0.5">0.5×</button><button data-speed="0.75">0.75×</button><button data-speed="1">Reset 1×</button><button data-speed="1.5">1.5×</button><button data-speed="2">2×</button></div>
+<label for="mix-duration">Default mix (seconds)</label><input id="mix-duration" type="number" min="0" max="60" step="0.05" value="0" style="width:90px"><button id="mix-reset">Reset mix 0</button>
+<label for="track-index">Track index</label><input id="track-index" type="number" min="0" max="16" step="1" value="0" style="width:65px">
+<div class="toolbar"><button id="crossfade">Crossfade to selected</button><button id="enqueue">Enqueue selected</button><button id="clear-queue">Clear queue</button></div>
+<pre id="playback-inspector" class="secondary" aria-live="polite">No animation</pre>
+<div class="check"><input id="loop" type="checkbox" checked><label for="loop">Loop</label></div>
+<div class="check"><input id="bones" type="checkbox" checked><label for="bones">Bones</label></div>
+<div class="check"><input id="wire" type="checkbox"><label for="wire">Mesh wireframe</label></div>
+<h3>Camera</h3>
+<div class="toolbar"><button id="fit-scene">Fit scene</button><button id="fit-selection">Fit selection</button><button id="fixed-camera">Fixed view</button></div>
+<label for="selection-slot">Selected slot</label><select id="selection-slot" aria-label="Camera selected slot"></select>
+<div class="toolbar" style="margin-top:8px"><button id="zoom-in">Zoom +</button><button id="zoom-out">Zoom −</button></div>
+<p class="secondary" style="margin-top:8px">Drag to pan · Mouse wheel to zoom around cursor</p>
+<pre id="camera-info" class="secondary">Fit scene</pre>
+<h3>Diagnostics</h3><pre id="diagnostic" aria-live="polite">Load an IR file or synthetic demo.</pre></section>
+<section><div class="viewport"><canvas id="canvas" width="900" height="600"></canvas><canvas id="overlay" width="900" height="600"></canvas></div>
+<p class="secondary" id="stats">No scene loaded</p><p class="secondary">Only explicitly selected local images are loaded. The player does not contact external services or execute event audio paths.</p></section></div>
+<script type="importmap">{"imports":{
+"@riglyph/core":"/pkg/core/index.js",
+"@riglyph/runtime":"/pkg/runtime/index.js",
+"@riglyph/renderer-webgl2":"/pkg/renderer-webgl2/index.js",
+"@riglyph/player-web":"/pkg/player-web/index.js"
+}}</script>
+<script type="module" src="/engine/playground/client.js"></script></body></html>

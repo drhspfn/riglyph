@@ -1,0 +1,46 @@
+{
+  "name": "riglyph",
+  "version": "0.15.1",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "description": "Independent skeletal animation engine with version-neutral IR",
+  "scripts": {
+    "build": "node scripts/build-all.mjs",
+    "typecheck": "node scripts/typecheck-all.mjs",
+    "test": "npm run build && node --test dist/tests/*.test.js",
+    "cli": "npm run build && node packages/cli/dist/cli/main.js",
+    "playground": "npm run build && node dist/src/playground/server.js",
+    "browser:g3": "python scripts/browser-g3.py && python scripts/browser-g3-pixels.py",
+    "browser:playground": "python scripts/browser-playground.py",
+    "pack:check": "node scripts/pack-check.mjs",
+    "smoke:packages": "node scripts/package-smoke.mjs",
+    "smoke:frameworks": "node scripts/prepare-consumer-assets.mjs && node scripts/framework-builds.mjs",
+    "browser:g5": "python scripts/browser-g5.py",
+    "browser:g9": "python scripts/browser-g9.py",
+    "conformance:demo": "node scripts/g6-fake-provider.mjs g6-derived-demo.json && node scripts/g6-conformance.mjs assess g6-derived-demo.json g6-derived-assessment.json",
+    "audit:public": "node scripts/audit-public.mjs",
+    "g10:example": "node examples/g10-playback/create-authored.mjs",
+    "g10:playback": "npm run build && node scripts/g10-playback.mjs",
+    "browser:g10": "python scripts/browser-g10.py",
+    "release:verify": "node scripts/release-verify.mjs",
+    "release:dry-run": "node scripts/release-dry-run.mjs",
+    "smoke:external": "node scripts/external-smoke.mjs"
+  },
+  "devDependencies": {
+    "typescript": "file:vendor/typescript-5.8.3.tgz",
+    "@types/node": "file:vendor/types-node-25.1.0.tgz",
+    "undici-types": "file:vendor/undici-types-7.16.0.tgz"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drhspfn/riglyph.git"
+  },
+  "homepage": "https://github.com/drhspfn/riglyph#readme",
+  "bugs": {
+    "url": "https://github.com/drhspfn/riglyph/issues"
+  }
+}

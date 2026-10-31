@@ -1,0 +1,182 @@
+{
+  "kind": "clean-room-synthetic",
+  "version": "1.0.0",
+  "ir": {
+    "format": "universal-skeleton-ir",
+    "schemaVersion": "1.0.0",
+    "source": {
+      "family": "self-authored-ir",
+      "version": "1.0.0",
+      "sha256": "5df9c16b3d25e6240a314c0ef257c950d680823104e503f5f08c5d1654510640",
+      "adapter": "agent-b-fixture",
+      "adapterVersion": "0.1.0"
+    },
+    "conventions": {
+      "axes": "x-right-y-up",
+      "time": "seconds",
+      "angles": "degrees",
+      "uvOrigin": "top-left",
+      "color": "straight-srgba",
+      "unitsPerPixel": 1
+    },
+    "capabilities": [
+      "region",
+      "bone_rotation"
+    ],
+    "atlases": {
+      "pages": [
+        {
+          "id": "page0",
+          "path": "synthetic-example.png",
+          "width": 2,
+          "height": 2,
+          "minFilter": "Nearest",
+          "magFilter": "Nearest",
+          "wrapU": "clamp",
+          "wrapV": "clamp",
+          "pma": false,
+          "scale": 1
+        }
+      ],
+      "regions": [
+        {
+          "id": "reg0",
+          "name": "checkered-quad",
+          "pageId": "page0",
+          "bounds": [
+            0,
+            0,
+            2,
+            2
+          ],
+          "originalSize": [
+            2,
+            2
+          ],
+          "offset": [
+            0,
+            0
+          ],
+          "rotationDeg": 0
+        }
+      ]
+    },
+    "skeleton": {
+      "bounds": [
+        -2,
+        -2,
+        4,
+        4
+      ],
+      "bones": [
+        {
+          "id": "root",
+          "parentId": null,
+          "setup": {
+            "x": 0,
+            "y": 0,
+            "rotationDeg": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearXDeg": 0,
+            "shearYDeg": 0,
+            "length": 0
+          },
+          "inheritance": "normal",
+          "skinRequired": false
+        }
+      ],
+      "slots": [
+        {
+          "id": "slot0",
+          "boneId": "root",
+          "drawIndex": 0,
+          "light": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "dark": null,
+          "setupAttachmentId": "attachment0",
+          "blend": "normal"
+        }
+      ],
+      "skins": [
+        {
+          "id": "default",
+          "isDefault": true,
+          "attachments": [
+            {
+              "slotId": "slot0",
+              "key": "square",
+              "attachmentId": "attachment0"
+            }
+          ],
+          "activeBoneIds": [],
+          "activeConstraintIds": []
+        }
+      ],
+      "attachments": [
+        {
+          "id": "attachment0",
+          "name": "square",
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "kind": "region",
+          "regionId": "reg0",
+          "local": {
+            "x": 0,
+            "y": 0,
+            "rotationDeg": 0,
+            "scaleX": 1,
+            "scaleY": 1,
+            "shearXDeg": 0,
+            "shearYDeg": 0,
+            "length": 0
+          },
+          "width": 1,
+          "height": 1,
+          "sequence": null
+        }
+      ],
+      "constraints": [],
+      "events": [],
+      "animations": [
+        {
+          "id": "rotate90",
+          "name": "quarter_turn_synthetic",
+          "durationSec": 1,
+          "timelines": [
+            {
+              "targetKind": "bone",
+              "targetId": "root",
+              "property": "rotationDeg",
+              "deformBasis": "none",
+              "keys": [
+                {
+                  "timeSec": 0,
+                  "value": 0,
+                  "interpolation": {
+                    "kind": "linear"
+                  }
+                },
+                {
+                  "timeSec": 1,
+                  "value": 90,
+                  "interpolation": {
+                    "kind": "stepped"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

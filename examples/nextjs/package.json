@@ -1,0 +1,26 @@
+{
+  "name": "skeleton-nextjs-example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start -H 127.0.0.1",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@riglyph/core": "file:../../release-packages/riglyph-core-0.15.1.tgz",
+    "@riglyph/runtime": "file:../../release-packages/riglyph-runtime-0.15.1.tgz",
+    "@riglyph/renderer-webgl2": "file:../../release-packages/riglyph-renderer-webgl2-0.15.1.tgz",
+    "@riglyph/player-web": "file:../../release-packages/riglyph-player-web-0.15.1.tgz",
+    "next": "16.0.0",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "typescript": "5.8.3",
+    "@types/node": "25.1.0",
+    "@types/react": "19.2.0"
+  }
+}

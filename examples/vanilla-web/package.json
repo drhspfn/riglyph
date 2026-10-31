@@ -1,0 +1,15 @@
+{
+  "name": "skeleton-vanilla-web-example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node serve.mjs"
+  },
+  "dependencies": {
+    "@riglyph/core": "file:../../release-packages/riglyph-core-0.8.0.tgz",
+    "@riglyph/runtime": "file:../../release-packages/riglyph-runtime-0.8.0.tgz",
+    "@riglyph/renderer-webgl2": "file:../../release-packages/riglyph-renderer-webgl2-0.8.0.tgz",
+    "@riglyph/player-web": "file:../../release-packages/riglyph-player-web-0.8.0.tgz"
+  }
+}

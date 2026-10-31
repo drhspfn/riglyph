@@ -1,0 +1,6 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Universal Skeleton — vanilla ESM example</title>
+<!-- Serve this directory with a static HTTP server after npm install; no bundler required. -->
+<script type="importmap">{"imports":{"@riglyph/core":"./node_modules/@riglyph/core/dist/index.js","@riglyph/runtime":"./node_modules/@riglyph/runtime/dist/index.js","@riglyph/renderer-webgl2":"./node_modules/@riglyph/renderer-webgl2/dist/index.js","@riglyph/player-web":"./node_modules/@riglyph/player-web/dist/index.js"}}</script>
+</head><body style="font:16px system-ui;background:#18202d;color:white"><h1>Universal Skeleton Player</h1><canvas id="player" width="800" height="600" style="max-width:100%;width:800px;height:600px;border:1px solid #777"></canvas>
+<p><button id="play">Play</button> <button id="pause">Pause</button> <button id="fit">Fit scene</button></p>
+<script type="module" src="./main.js"></script></body></html>

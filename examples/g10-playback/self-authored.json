@@ -1,0 +1,126 @@
+{
+  "format": "riglyph-g10-playback-schedule-v1",
+  "scenario": {
+    "id": "g10-authored-playback",
+    "targetCompatibilityVersion": "4.1.23",
+    "referenceViewerVersion": "4.1.24",
+    "referenceStatus": "UNVERIFIED_NO_REFERENCE",
+    "referenceKind": "none",
+    "referenceAvailable": false,
+    "fixtureOrigin": "DERIVED_ONLY",
+    "irArtifactSha256": "993226786b7f8a9572c11f2ec19fdeb567e07e3baf1849fa5e547819cf958a61"
+  },
+  "assets": {
+    "ir": "self-authored.ir.json",
+    "textures": [
+      {
+        "pageId": "page0",
+        "path": "self-authored.png"
+      }
+    ]
+  },
+  "schedule": [
+    {
+      "op": "set",
+      "track": 0,
+      "clipId": "rotate90",
+      "loop": true
+    },
+    {
+      "op": "speed",
+      "value": 0.29
+    },
+    {
+      "op": "advance",
+      "wallDeltaSec": 1
+    },
+    {
+      "op": "sample",
+      "id": "slow"
+    },
+    {
+      "op": "pause"
+    },
+    {
+      "op": "advance",
+      "wallDeltaSec": 1
+    },
+    {
+      "op": "sample",
+      "id": "paused"
+    },
+    {
+      "op": "resume"
+    },
+    {
+      "op": "speed",
+      "value": 1
+    },
+    {
+      "op": "seek",
+      "track": 0,
+      "timeSec": 0.5
+    },
+    {
+      "op": "sample",
+      "id": "seek"
+    },
+    {
+      "op": "transition",
+      "track": 0,
+      "clipId": "rotate90",
+      "loop": true,
+      "mixDurationSec": 0.3
+    },
+    {
+      "op": "advance",
+      "wallDeltaSec": 0.15
+    },
+    {
+      "op": "sample",
+      "id": "half-mix"
+    },
+    {
+      "op": "advance",
+      "wallDeltaSec": 0.15
+    },
+    {
+      "op": "sample",
+      "id": "mix-end"
+    },
+    {
+      "op": "queue",
+      "track": 0,
+      "clipId": "rotate90",
+      "loop": false,
+      "mixDurationSec": 0
+    },
+    {
+      "op": "sample",
+      "id": "queued"
+    }
+  ],
+  "samples": {
+    "bones": [
+      "root"
+    ],
+    "vertices": []
+  },
+  "render": {
+    "viewport": {
+      "left": -2,
+      "bottom": -2,
+      "width": 4,
+      "height": 4
+    },
+    "width": 64,
+    "height": 64,
+    "sampling": "nearest",
+    "clearRGBA": [
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+}

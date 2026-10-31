@@ -1,0 +1,1 @@
+export function compareRgbaRoi(reference:Uint8Array,candidate:Uint8Array,opts:{width:number;height:number;roi?:{x:number;y:number;width:number;height:number};alphaThreshold?:number;absTolerance?:number}):any;

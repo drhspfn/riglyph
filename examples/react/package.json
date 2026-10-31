@@ -1,0 +1,26 @@
+{
+  "name": "riglyph-react-example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host 127.0.0.1",
+    "start": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@riglyph/core": "file:../../release-packages/riglyph-core-0.15.1.tgz",
+    "@riglyph/runtime": "file:../../release-packages/riglyph-runtime-0.15.1.tgz",
+    "@riglyph/renderer-webgl2": "file:../../release-packages/riglyph-renderer-webgl2-0.15.1.tgz",
+    "@riglyph/player-web": "file:../../release-packages/riglyph-player-web-0.15.1.tgz",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "vite": "7.1.0",
+    "@types/react": "19.2.0",
+    "@types/react-dom": "19.2.0",
+    "typescript": "5.8.3"
+  }
+}

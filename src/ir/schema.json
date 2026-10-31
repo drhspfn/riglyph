@@ -1,0 +1,1298 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/universal-skeleton-ir/1.0.0/schema.json",
+  "$comment": "Analyst design artifact. Reference shape only: numerical, semantic, cross-reference and feature checks must be performed by separate validators.",
+  "title": "Universal Skeleton IR v1.0 (proposed canonical contract)",
+  "type": "object",
+  "properties": {
+    "format": {
+      "const": "universal-skeleton-ir"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.[0-9]+\\.[0-9]+$"
+    },
+    "source": {
+      "type": "object",
+      "properties": {
+        "family": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "adapter": {
+          "type": "string",
+          "minLength": 1
+        },
+        "adapterVersion": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "family",
+        "version",
+        "sha256",
+        "adapter",
+        "adapterVersion"
+      ],
+      "additionalProperties": false
+    },
+    "conventions": {
+      "type": "object",
+      "properties": {
+        "axes": {
+          "const": "x-right-y-up"
+        },
+        "time": {
+          "const": "seconds"
+        },
+        "angles": {
+          "const": "degrees"
+        },
+        "uvOrigin": {
+          "type": "string",
+          "enum": [
+            "top-left",
+            "bottom-left"
+          ]
+        },
+        "color": {
+          "type": "string",
+          "enum": [
+            "straight-srgba",
+            "premultiplied-srgba",
+            "straight-linear",
+            "premultiplied-linear"
+          ]
+        },
+        "unitsPerPixel": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "axes",
+        "time",
+        "angles",
+        "uvOrigin",
+        "color",
+        "unitsPerPixel"
+      ],
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "atlases": {
+      "type": "object",
+      "properties": {
+        "pages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/atlasPage"
+          }
+        },
+        "regions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/atlasRegion"
+          }
+        }
+      },
+      "required": [
+        "pages",
+        "regions"
+      ],
+      "additionalProperties": false
+    },
+    "skeleton": {
+      "$ref": "#/$defs/skeleton"
+    },
+    "authoringData": {
+      "type": "object",
+      "properties": {
+        "fps": {
+          "type": "number"
+        },
+        "imagesPath": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "audioPath": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "boneColors": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "attachmentMetadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "color": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "edges": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              "width": {
+                "type": "number"
+              },
+              "height": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "fps",
+        "imagesPath",
+        "audioPath",
+        "boneColors",
+        "attachmentMetadata"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "format",
+    "schemaVersion",
+    "source",
+    "conventions",
+    "capabilities",
+    "atlases",
+    "skeleton"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "vec2": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "vec3": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "vec4": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "vecN": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "indices": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "localTransform": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "rotationDeg": {
+          "type": "number"
+        },
+        "scaleX": {
+          "type": "number"
+        },
+        "scaleY": {
+          "type": "number"
+        },
+        "shearXDeg": {
+          "type": "number"
+        },
+        "shearYDeg": {
+          "type": "number"
+        },
+        "length": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "rotationDeg",
+        "scaleX",
+        "scaleY",
+        "shearXDeg",
+        "shearYDeg",
+        "length"
+      ],
+      "additionalProperties": false
+    },
+    "influence": {
+      "type": "object",
+      "properties": {
+        "boneId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "weight": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "boneId",
+        "x",
+        "y",
+        "weight"
+      ],
+      "additionalProperties": false
+    },
+    "vertex": {
+      "type": "object",
+      "properties": {
+        "position": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "influences": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/influence"
+          }
+        }
+      },
+      "required": [
+        "position",
+        "influences"
+      ],
+      "additionalProperties": false
+    },
+    "sequence": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "start": {
+          "type": "integer"
+        },
+        "digits": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "setupIndex": {
+          "type": "integer"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "basePath": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "count",
+        "start",
+        "digits",
+        "setupIndex"
+      ],
+      "additionalProperties": false
+    },
+    "atlasPage": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "minFilter": {
+          "type": "string"
+        },
+        "magFilter": {
+          "type": "string"
+        },
+        "wrapU": {
+          "type": "string"
+        },
+        "wrapV": {
+          "type": "string"
+        },
+        "pma": {
+          "type": "boolean"
+        },
+        "scale": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "id",
+        "path",
+        "width",
+        "height",
+        "pma",
+        "scale"
+      ],
+      "additionalProperties": false
+    },
+    "atlasRegion": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pageId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bounds": {
+          "$ref": "#/$defs/vec4"
+        },
+        "originalSize": {
+          "$ref": "#/$defs/vec2"
+        },
+        "offset": {
+          "$ref": "#/$defs/vec2"
+        },
+        "rotationDeg": {
+          "type": "integer",
+          "enum": [
+            0,
+            90,
+            180,
+            270
+          ]
+        },
+        "sequenceIndex": {
+          "oneOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "pageId",
+        "bounds",
+        "originalSize",
+        "offset",
+        "rotationDeg"
+      ],
+      "additionalProperties": false
+    },
+    "bone": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parentId": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "setup": {
+          "$ref": "#/$defs/localTransform"
+        },
+        "inheritance": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "only_translation",
+            "no_rotation_or_reflection",
+            "no_scale",
+            "no_scale_or_reflection"
+          ]
+        },
+        "skinRequired": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "parentId",
+        "setup",
+        "inheritance",
+        "skinRequired"
+      ],
+      "additionalProperties": false
+    },
+    "slot": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "boneId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "drawIndex": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "light": {
+          "$ref": "#/$defs/vec4"
+        },
+        "dark": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/vec3"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "setupAttachmentId": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "blend": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "additive",
+            "multiply",
+            "screen"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "boneId",
+        "drawIndex",
+        "light",
+        "dark",
+        "setupAttachmentId",
+        "blend"
+      ],
+      "additionalProperties": false
+    },
+    "skinMap": {
+      "type": "object",
+      "properties": {
+        "slotId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key": {
+          "type": "string"
+        },
+        "attachmentId": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "slotId",
+        "key",
+        "attachmentId"
+      ],
+      "additionalProperties": false
+    },
+    "skin": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "isDefault": {
+          "type": "boolean"
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/skinMap"
+          }
+        },
+        "activeBoneIds": {
+          "$ref": "#/$defs/ids"
+        },
+        "activeConstraintIds": {
+          "$ref": "#/$defs/ids"
+        }
+      },
+      "required": [
+        "id",
+        "isDefault",
+        "attachments",
+        "activeBoneIds",
+        "activeConstraintIds"
+      ],
+      "additionalProperties": false
+    },
+    "attachment": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "name": {
+              "type": "string"
+            },
+            "color": {
+              "$ref": "#/$defs/vec4"
+            },
+            "kind": {
+              "const": "region"
+            },
+            "regionId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "local": {
+              "$ref": "#/$defs/localTransform"
+            },
+            "width": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            },
+            "sequence": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/sequence"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "color",
+            "kind",
+            "regionId",
+            "local",
+            "width",
+            "height",
+            "sequence"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "name": {
+              "type": "string"
+            },
+            "color": {
+              "$ref": "#/$defs/vec4"
+            },
+            "kind": {
+              "const": "mesh"
+            },
+            "regionId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uvs": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            "triangles": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "vertices": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/vertex"
+              }
+            },
+            "hullVertexCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "sequence": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/sequence"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "color",
+            "kind",
+            "regionId",
+            "uvs",
+            "triangles",
+            "vertices",
+            "hullVertexCount",
+            "sequence"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "name": {
+              "type": "string"
+            },
+            "color": {
+              "$ref": "#/$defs/vec4"
+            },
+            "kind": {
+              "const": "linked_mesh"
+            },
+            "parentMeshId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "regionId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "deformTimelineOwnerId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "inheritDeform": {
+              "type": "boolean"
+            },
+            "sequence": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/sequence"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "kind",
+            "parentMeshId",
+            "regionId",
+            "deformTimelineOwnerId",
+            "inheritDeform",
+            "color",
+            "sequence"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "name": {
+              "type": "string"
+            },
+            "color": {
+              "$ref": "#/$defs/vec4"
+            },
+            "kind": {
+              "const": "clipping"
+            },
+            "endSlotId": {
+              "type": "string",
+              "minLength": 1
+            },
+            "vertices": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/vertex"
+              }
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "kind",
+            "endSlotId",
+            "vertices",
+            "color"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "name": {
+              "type": "string"
+            },
+            "color": {
+              "$ref": "#/$defs/vec4"
+            },
+            "kind": {
+              "const": "bounding_box"
+            },
+            "vertices": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/vertex"
+              }
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "kind",
+            "vertices",
+            "color"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "name": {
+              "type": "string"
+            },
+            "color": {
+              "$ref": "#/$defs/vec4"
+            },
+            "kind": {
+              "const": "path"
+            },
+            "vertices": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/vertex"
+              }
+            },
+            "closed": {
+              "type": "boolean"
+            },
+            "constantSpeed": {
+              "type": "boolean"
+            },
+            "lengths": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "kind",
+            "vertices",
+            "closed",
+            "constantSpeed",
+            "lengths",
+            "color"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "name": {
+              "type": "string"
+            },
+            "color": {
+              "$ref": "#/$defs/vec4"
+            },
+            "kind": {
+              "const": "point"
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "rotationDeg": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "id",
+            "name",
+            "kind",
+            "x",
+            "y",
+            "rotationDeg",
+            "color"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "constraint": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "ik",
+            "transform",
+            "path"
+          ]
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "activeInDefaultSkin": {
+          "type": "boolean"
+        },
+        "boneIds": {
+          "$ref": "#/$defs/ids"
+        },
+        "targetBoneId": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "targetSlotId": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "order",
+        "boneIds",
+        "targetBoneId",
+        "targetSlotId",
+        "parameters"
+      ],
+      "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "int": {
+          "type": "integer"
+        },
+        "float": {
+          "type": "number"
+        },
+        "string": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "audio": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "volume": {
+          "type": "number"
+        },
+        "balance": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "interpolation": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "linear",
+            "stepped",
+            "cubic_bezier"
+          ]
+        },
+        "bezierByChannel": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/vec4"
+          }
+        },
+        "sampling": {
+          "type": "string",
+          "enum": [
+            "polyline10"
+          ]
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    "key": {
+      "type": "object",
+      "properties": {
+        "timeSec": {
+          "type": "number",
+          "minimum": 0
+        },
+        "value": {},
+        "interpolation": {
+          "$ref": "#/$defs/interpolation"
+        }
+      },
+      "required": [
+        "timeSec",
+        "value",
+        "interpolation"
+      ],
+      "additionalProperties": false
+    },
+    "timeline": {
+      "type": "object",
+      "properties": {
+        "targetKind": {
+          "type": "string",
+          "enum": [
+            "bone",
+            "slot",
+            "attachment",
+            "constraint",
+            "skeleton",
+            "event"
+          ]
+        },
+        "targetId": {
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "property": {
+          "type": "string",
+          "minLength": 1
+        },
+        "deformBasis": {
+          "type": "string",
+          "enum": [
+            "none",
+            "vertex_delta",
+            "influence_delta"
+          ]
+        },
+        "keys": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/key"
+          }
+        }
+      },
+      "required": [
+        "targetKind",
+        "targetId",
+        "property",
+        "deformBasis",
+        "keys"
+      ],
+      "additionalProperties": false
+    },
+    "animation": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "durationSec": {
+          "type": "number",
+          "minimum": 0
+        },
+        "timelines": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/timeline"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "durationSec",
+        "timelines"
+      ],
+      "additionalProperties": false
+    },
+    "skeleton": {
+      "type": "object",
+      "properties": {
+        "bounds": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/vec4"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "bones": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/bone"
+          }
+        },
+        "slots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/slot"
+          }
+        },
+        "skins": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/skin"
+          }
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/attachment"
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/constraint"
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/event"
+          }
+        },
+        "animations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/animation"
+          }
+        }
+      },
+      "required": [
+        "bounds",
+        "bones",
+        "slots",
+        "skins",
+        "attachments",
+        "constraints",
+        "events",
+        "animations"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

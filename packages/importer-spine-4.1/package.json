@@ -1,0 +1,43 @@
+{
+  "name": "@riglyph/importer-spine-4.1",
+  "version": "0.15.1",
+  "type": "module",
+  "license": "MIT",
+  "description": "Build-time import adapter for Spine Binary 4.1.23 into Riglyph IR",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@riglyph/core": "0.15.1",
+    "@riglyph/importer-sdk": "0.15.1"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drhspfn/riglyph.git"
+  },
+  "homepage": "https://github.com/drhspfn/riglyph#readme",
+  "bugs": {
+    "url": "https://github.com/drhspfn/riglyph/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

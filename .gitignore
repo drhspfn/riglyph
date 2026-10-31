@@ -1,0 +1,75 @@
+node_modules/
+dist/
+dist-playground/
+coverage/
+*.tsbuildinfo
+*.log
+*.skel
+*.png
+!fixtures/*.png
+
+# Also ignore ephemeral local node_modules symlinks in verification environments
+node_modules
+
+__pycache__/
+*.pyc
+
+# G5 local consumer artifacts
+framework-build-results.json
+public-export-staging/
+examples/*/node_modules/
+examples/*/.next/
+examples/*/dist/
+examples/*/package-lock.json
+
+!docs/assets/riglyph-logo.png
+!examples/node-cli/character.skel
+!examples/node-cli/character.png
+
+release-packages/
+release-artifacts/
+!examples/g10-playback/self-authored.png
+
+# Private game assets and imported skeletons
+/assets/
+/fixtures/g8-a11-private/
+/fixtures/oracles/
+/fixtures/wire41/
+
+# Internal analysis and verification
+/docs/analyst-*/
+/docs/a[0-9]-*/
+/docs/g[0-9]*-*/
+/docs/G3-001-fixed.md
+/docs/private-verification-protocol.md
+/docs/questions-to-analyst.md
+/docs/stage-log.md
+/docs/test-results.txt
+/docs/clean-room-provenance.md
+
+/reference-requests/
+/reports/g8/
+/reports/g81/
+
+# Internal test scripts
+/scripts/private-*.mjs
+/scripts/g81-*.mjs
+/scripts/inheritance-diff.mjs
+/scripts/provenance.mjs
+/scripts/stage-public.mjs
+
+# Internal tests
+/tests/a[0-9]-*.test.ts
+/tests/g[0-9]*.test.ts
+/tests/wire41.test.ts
+
+# Old internal examples
+/examples/converted-synthetic.json
+/examples/g3-*.json
+
+# Internal Agent A/B reports
+/docs/a[0-9]*
+/docs/g[0-9]*
+/docs/dependencies.md
+# Maintainer-only local documents (never tracked)
+/_maintainer-private/

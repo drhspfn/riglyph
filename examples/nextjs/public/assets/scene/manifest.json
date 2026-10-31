@@ -1,0 +1,12 @@
+{
+  "assetFormat": "universal-skeleton-asset",
+  "assetVersion": "1.0.0",
+  "ir": "skeleton.ir.json",
+  "pages": [
+    {
+      "pageId": "page0",
+      "url": "textures/synthetic-example.png"
+    }
+  ],
+  "defaultAnimation": "rotate90"
+}

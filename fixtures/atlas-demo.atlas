@@ -1,0 +1,9 @@
+synthetic-example.png
+size: 2, 2
+filter: Nearest, Nearest
+pma: false
+scale: 1
+square
+rotate: false
+bounds: 0, 0, 2, 2
+offsets: 0, 0, 2, 2

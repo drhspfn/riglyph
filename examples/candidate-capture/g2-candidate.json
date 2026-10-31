@@ -1,0 +1,61 @@
+{
+  "format": "universal-skeleton-candidate-manifest-v1",
+  "scenario": {
+    "format": "universal-skeleton-conformance-scenario-v1",
+    "id": "self-authored-candidate-1",
+    "sourceVersion": "4.1.23",
+    "fixtureOrigin": "DERIVED_ONLY",
+    "sourceArtifactSha256": "993226786b7f8a9572c11f2ec19fdeb567e07e3baf1849fa5e547819cf958a61",
+    "referenceBuild": {
+      "id": "no-source-reference",
+      "sha256": "ba691ba042bcedd9a61a36f5969026bc95859dccdc7e47f24e6bce35673baf2f"
+    },
+    "conditions": {
+      "clipId": "rotate90",
+      "skinId": "default",
+      "timeSec": 0.5,
+      "trackOrder": [
+        0
+      ],
+      "updateOrder": [
+        {
+          "method": "evaluate",
+          "timeSec": 0.5
+        }
+      ],
+      "coordinates": {
+        "matrixOrder": "a,b,c,d,x,y",
+        "yAxis": "up",
+        "rotationUnits": "degrees",
+        "globalTransformPolicy": "identity"
+      }
+    },
+    "gate": "G2",
+    "feature": "G2-BONE",
+    "comparison": {
+      "mode": "scalar-vector",
+      "absTolerance": 0.00001,
+      "relTolerance": 0.00001
+    }
+  },
+  "assets": {
+    "ir": "../../fixtures/minimal.json",
+    "textures": []
+  },
+  "evaluation": {
+    "skinId": "default",
+    "layers": [
+      {
+        "clipId": "rotate90",
+        "timeSec": 0.5
+      }
+    ]
+  },
+  "samples": {
+    "bones": [
+      "root"
+    ],
+    "vertices": [],
+    "events": false
+  }
+}
