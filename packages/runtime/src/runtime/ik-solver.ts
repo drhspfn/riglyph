@@ -38,7 +38,6 @@ export function solveTwoLink(input:TwoLinkInput):{first:Transform;second:Transfo
    targetGoal=[firstWorld.x+targetDx*amount,firstWorld.y+targetDy*amount];
   }
  }
- const goalDistance=Math.hypot(targetGoal[0]-firstWorld.x,targetGoal[1]-firstWorld.y);
  const evalTip=(r1:number,r2:number)=>{
   const p=inheritTransform(parent,{...workingFirst,rotationDeg:r1},input.firstInheritance);
   const c=inheritTransform(p,{...second,rotationDeg:r2},input.secondInheritance);
@@ -60,9 +59,11 @@ export function solveTwoLink(input:TwoLinkInput):{first:Transform;second:Transfo
  // An unreachable chain points both segments at the target. Without a
  // usable stretch mode, Newton iterations against the impossible target
  // produce a spurious elbow angle instead of the finite straight chain.
- if(goalDistance>reach+1e-8&&!canStretch){
+ // The 4.1 reference keeps a straight-chain fallback when the original
+ // target exceeds reach, even if softness has an internal reachable goal.
+ if(distance>reach+1e-8&&!canStretch){
   const aligned=solveOneLink({parentBasis:parent,world:firstWorld,local:first,
-   inheritance:input.firstInheritance,target:[targetGoal[0],targetGoal[1]],mix,
+   inheritance:input.firstInheritance,target,mix,
    compress:false,stretch:false,uniform:false});
   const follower={...second,rotationDeg:second.rotationDeg+
    shortestAngleDelta(second.rotationDeg,0)*mix};
