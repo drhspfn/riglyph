@@ -24,12 +24,11 @@ function pathScene(reflected:boolean,spacing:number):IRDocument{
  return ir;
 }
 
-test('capability audit does not certify known reflected-negative fixed Path numerical gap',()=>{
+test('capability audit recognizes numerically verified reflected-negative fixed Path',()=>{
  const report=inspectEvaluability(pathScene(true,-8));
  const path=report.features.find(f=>f.feature==='constraint.path');
- assert.equal(path?.status,'unverified');
- assert.match(path?.reason??'',/A20-PATH-06/);
- assert.equal(report.fullyEvaluable,false);
+ assert.equal(path?.status,'supported');
+ assert.equal(report.fullyEvaluable,true);
 });
 
 test('capability audit retains supported status for ordinary tangent fixed positive spacing',()=>{
