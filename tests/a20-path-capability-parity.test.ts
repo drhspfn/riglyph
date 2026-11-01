@@ -28,6 +28,9 @@ test('capability audit recognizes numerically verified reflected-negative fixed 
  const report=inspectEvaluability(pathScene(true,-8));
  const path=report.features.find(f=>f.feature==='constraint.path');
  assert.equal(path?.status,'supported');
+ assert.equal(path?.referenceStatus,'NUMERIC_REFERENCE_PARTIAL');
+ assert.equal(path?.evidence,'INDEPENDENT_NUMERIC_CASES');
+ assert.equal(report.sourceParity,'NUMERIC_REFERENCE_PARTIAL');
  assert.equal(report.fullyEvaluable,true);
 });
 
