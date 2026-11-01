@@ -70,11 +70,12 @@ export class CubicWorldPath {
   }
   this.total=this.cumulative.at(-1)!;
  }
- /** Evaluate a sequence of path positions with one traversal context. On the
-  * independent 4.1 reference profile, a descending traversal inside the same
-  * closed Bézier retains its previous 1/10 arc-table interval, including when
-  * the next position lies to the left of that interval. Ordinary sample()
-  * remains stateless and independent of call order.
+ /** Evaluate a constraint's ordered positions using the observed 4.1
+  * forward-only arc-table cursor: inside the same Bézier, a lookup can advance
+  * to a later tenth but does not backtrack to an earlier tenth. The cursor
+  * resets on a curve change. This also covers a closed path wrapping back
+  * onto its previous curve and decreasing positions from negative spacing.
+  * Independent random-access sample() remains stateless.
   */
  sampleSequence(distances:readonly number[]):PathPoint[]{
   const cursor={distance:Number.NaN,curve:-1,interval:0};
@@ -106,13 +107,12 @@ export class CubicWorldPath {
   let t=Math.max(0,Math.min(1,fraction));
   if(this.constantSpeed&&q.total>EPS){
    const wanted=t*q.table.at(-1)!;
-   let low=0,high=STEPS;
-   if(cursor&&this.closed&&distance<cursor.distance&&segment===cursor.curve){
-    low=cursor.interval;high=Math.min(STEPS,low+1);
-   }else{
-    while(low+1<high){const mid=(low+high)>>1;if(q.table[mid]!<wanted)low=mid;else high=mid;}
-   }
-   const start=q.table[low]!,end=q.table[high]!;
+   let low=cursor&&segment===cursor.curve?cursor.interval:0,high=STEPS;
+   // Retain the last table bracket for a traversal of the same curve.
+   // Forward searches advance, while reverse searches extrapolate within
+   // the retained bracket instead of silently re-initializing it.
+   while(low+1<high){const mid=(low+high)>>1;if(q.table[mid]!<wanted)low=mid;else high=mid;}
+   const start=q.table[low]!,end=q.table[Math.min(STEPS,low+1)]!;
    t=(low+(end-start>EPS?(wanted-start)/(end-start):0))/STEPS;
    if(cursor){cursor.distance=distance;cursor.curve=segment;cursor.interval=low;}
   }
