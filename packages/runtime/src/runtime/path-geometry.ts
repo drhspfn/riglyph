@@ -58,7 +58,13 @@ export class CubicWorldPath {
  }
  sample(distance:number):PathPoint{
   if(!Number.isFinite(distance))throw new RangeError('Nonfinite path distance');
-  if(this.total<EPS){const first=this.curves[0]!,p=first.a;return{x:p.x,y:p.y,angle:angle(first,0)};}
+  if(this.total<EPS){
+   const first=this.curves[0]!,p=first.a;
+   const theta=angle(first,0);
+   const distanceAlong=!this.closed?distance:0;
+   return{x:p.x+Math.cos(theta)*distanceAlong,
+    y:p.y+Math.sin(theta)*distanceAlong,angle:theta};
+  }
   let d=distance;
   if(this.closed)d=((d%this.total)+this.total)%this.total;
   if(!this.closed&&(d<0||d>this.total)){
