@@ -52,7 +52,17 @@ export class CubicWorldPath {
     q.table.push(q.table[i-1]!+Math.hypot(current.x-previous.x,current.y-previous.y));
     previous=current;
    }
-   q.total=q.table.at(-1)!;
+   // The coarse four-chord curve length determines distance units in
+   // constant-speed mode. Position lookup independently uses the finer
+   // ten-chord table, keeping percent positions invariant under either
+   // approximation while preserving absolute position scaling.
+   let coarse=0,prevCoarse=q.a;
+   for(let step=1;step<=4;step++){
+    const nextCoarse=bezier(q,step/4);
+    coarse+=Math.hypot(nextCoarse.x-prevCoarse.x,nextCoarse.y-prevCoarse.y);
+    prevCoarse=nextCoarse;
+   }
+   q.total=coarse;
    const authored=authoredLengths[k];
    const previousEnd=k?authoredLengths[k-1]??0:0;
    const length=!constantSpeed&&Number.isFinite(authored)&&authored!>previousEnd?authored!-previousEnd:q.total;
@@ -84,7 +94,7 @@ export class CubicWorldPath {
   const fraction=span>EPS?(d-this.cumulative[segment]!)/span:0;
   let t=Math.max(0,Math.min(1,fraction));
   if(this.constantSpeed&&q.total>EPS){
-   const wanted=t*q.total;
+   const wanted=t*q.table.at(-1)!;
    let low=0,high=STEPS;
    while(low+1<high){const mid=(low+high)>>1;if(q.table[mid]!<wanted)low=mid;else high=mid;}
    const start=q.table[low]!,end=q.table[high]!;
