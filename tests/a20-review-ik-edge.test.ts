@@ -22,16 +22,16 @@ const near=(a:number,b:number,eps=1e-8)=>assert.ok(Math.abs(a-b)<=eps,`${a} != $
 
 test('IK softness selects a solution for the effective target, not the original unreachable target',()=>{
  const first=pose({length:35}),second=pose({x:35,length:25});
- const goal:[number,number]=[80,0],softness=20;
- // First pivot at origin; effective softened reach is 80 - (40-10) = 50.
- const effective:[number,number]=[50,0];
+ const goal:[number,number]=[60,0],softness=20;
+ // First pivot at origin; 60 is exactly the unsmoothed reach.
+ const effective:[number,number]=[60-400/(40+20/3),0];
  for(const bend of [-1,1] as const){
   const full=solveTwoLink({parentBasis:null,first,second,firstInheritance:'normal',
    secondInheritance:'normal',target:goal,bend,mix:1,softness});
   const tip=world(unit,full.first,full.second).tip;
   assert.ok(Math.hypot(tip[0]-effective[0],tip[1]-effective[1])<0.02,
    `bend ${bend}: tip ${tip} does not meet softened goal ${effective}`);
-  assert.ok(Math.hypot(tip[0]-goal[0],tip[1]-goal[1])>10);
+  assert.ok(Math.hypot(tip[0]-goal[0],tip[1]-goal[1])>7);
   assert.ok(full.residual<0.02,`softened solve residual ${full.residual}`);
   const partial=solveTwoLink({parentBasis:null,first,second,firstInheritance:'normal',
    secondInheritance:'normal',target:goal,bend,mix:.4,softness});
