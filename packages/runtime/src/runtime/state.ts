@@ -254,7 +254,6 @@ export class SkeletonInstance {
   const owner=this.ir.skeleton.slots.find(s=>s.id===c.targetSlotId)!;
   const points=this.vertices(attachment.vertices,owner.boneId,this.deforms.get(attachment.id));
   const geometry=new CubicWorldPath(points,attachment.closed,attachment.constantSpeed,attachment.lengths);
-  if(geometry.total<=1e-9)return;
   const p=this.parameters.get(c.id)!;
   const mixRotate=Number(p['mixRotate']??0),mixX=Number(p['mixX']??1),mixY=Number(p['mixY']??1);
   if(mixRotate===0&&mixX===0&&mixY===0)return;
