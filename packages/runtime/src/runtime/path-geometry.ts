@@ -21,7 +21,9 @@ function angle(q:Curve,t:number):number{
  const d=derivative(q,t);
  if(Math.hypot(d.x,d.y)>EPS)return Math.atan2(d.y,d.x);
  const near=bezier(q,Math.max(0,Math.min(1,t+1e-4))),p=bezier(q,Math.max(0,Math.min(1,t-1e-4)));
- return Math.atan2(near.y-p.y,near.x-p.x);
+ const dx=near.x-p.x,dy=near.y-p.y;
+ if(Math.hypot(dx,dy)<EPS)return 0;
+ return Math.atan2(dy,dx);
 }
 const STEPS=96;
 export class CubicWorldPath {
