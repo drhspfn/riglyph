@@ -25,7 +25,9 @@ function angle(q:Curve,t:number):number{
  if(Math.hypot(dx,dy)<EPS)return 0;
  return Math.atan2(dy,dx);
 }
-const STEPS=96;
+// Use the 10-subinterval arc-length table of the 4.1 reference profile.
+// This is the numerical integration granularity; cubic evaluation remains independent.
+const STEPS=10;
 export class CubicWorldPath {
  private readonly curves:Curve[]=[];
  private readonly cumulative:number[]=[0];
