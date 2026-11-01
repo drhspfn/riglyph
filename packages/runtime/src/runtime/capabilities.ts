@@ -28,11 +28,15 @@ export function inspectEvaluability(ir:IRDocument,{skinId=null,clipIds=[]}:{skin
   if(!active){add(`constraint.${c.kind}`,'supported',false,'Inactive for selected skin; not evaluated',c.id);continue;}
   const p=c.parameters,mayMix=(()=>{
    if(c.kind==='ik')return enabled(p['mix']??1)||valueAtAnyKey(c,clips,'mix',enabled);
-   return ['mixRotate','mixX','mixY','mixScaleX','mixScaleY','mixShearY'].some(k=>enabled(p[k])||valueAtAnyKey(c,clips,k,enabled));
+   return (c.kind==='path'?['mixRotate','mixX','mixY']:['mixRotate','mixX','mixY','mixScaleX','mixScaleY','mixShearY']).some(k=>enabled(p[k])||valueAtAnyKey(c,clips,k,enabled));
   })();
   if(c.kind==='ik'){
-   const risky=mayMix&&(flags(c,clips,['softness','compress','stretch'])||c.boneIds.length>2||c.boneIds.length===2&&ir.skeleton.bones.some(b=>b.id===c.boneIds[1]&&b.setup.length===0));
-   add('constraint.ik',risky?'unsupported':'supported',true,risky?'IK softness/compress/stretch or unsupported chain configuration may be active':'Local one/two-bone baseline only',c.id);
+   const invalid=c.boneIds.length>2;
+   const advanced=mayMix&&(flags(c,clips,['softness','compress','stretch'])||c.boneIds.length===2);
+   add('constraint.ik',invalid?'unsupported':advanced?'unverified':'supported',true,
+    invalid?'IK longer than two bones is outside the supported profile':
+    advanced?'Independent IK solver covers this configuration; numerical source parity is not yet established':
+    'Parent-space single-bone local solver and synthetic numeric cases',c.id);
   }else if(c.kind==='transform'){
    add('constraint.transform','supported',true,'Four local/world absolute/relative modes, six channels; A19 numeric 36-case reference suite, unverified edge cases',c.id);
   }else{
@@ -48,8 +52,13 @@ export function inspectEvaluability(ir:IRDocument,{skinId=null,clipIds=[]}:{skin
    const advanced=(rotateMode!=='tangent'&&enabled(p['mixRotate']))||spacing==='length'||spacing==='proportional';
    const missing=chosen!==undefined&&chosen.kind!=='path';
    const uncertain=switches||chosen===undefined;
-   add('constraint.path',weighted||nonConstant||advanced||missing?'unsupported':uncertain?'unverified':'supported',true,
-    weighted?'Weighted path vertices require an unsupported solver':nonConstant?'Nonconstant-speed paths require an unsupported solver':advanced?'Advanced path rotation/spacing is guarded':missing?'Target attachment is not a path':uncertain?'Path selection can change and requires a concrete runtime sample':'Local constant-speed unweighted tangent path only',c.id);
+   add('constraint.path',weighted||nonConstant||advanced||uncertain?'unverified':'supported',true,
+    weighted?'Weighted path world vertices are evaluated; numerical parity not established':
+    nonConstant?'Authored curve lengths are evaluated; numerical parity not established':
+    advanced?'Chain orientation/spacing are implemented but source numerical parity is not established':
+    uncertain?'Active attachment can change with animation or skin; audit is conservative':
+    missing?'Non-path attachment produces a defined no-op':
+    'World-space cubic sampler with independent XY/rotation mixing, local synthetic tests',c.id);
   }
  }
  const attachments=ir.skeleton.attachments;
