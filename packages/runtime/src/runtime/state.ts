@@ -287,8 +287,12 @@ export class SkeletonInstance {
    const boneId=c.boneIds[i]!,previous=originals.get(boneId)!;
    const current=geometry.sample(distances[i]!);
    const next=rotateMode==='tangent'?null:geometry.sample(distances[i+1]!);
-   const angle=next&&Math.hypot(next.x-current.x,next.y-current.y)>1e-8?
-    Math.atan2(next.y-current.y,next.x-current.x):current.angle;
+   // Exactly coincident samples have no chain direction. A zero vector
+   // retains atan2(0, 0) semantics; distinct sub-epsilon samples retain
+   // the stable tangent fallback (avoiding cancellation in float64).
+   const dx=next?next.x-current.x:0,dy=next?next.y-current.y:0;
+   const angle=next?(dx===0&&dy===0?0:
+    Math.hypot(dx,dy)>1e-8?Math.atan2(dy,dx):current.angle):current.angle;
    const offset=Number(p['offsetRotation']??0)*Math.PI/180*reflection;
    const wanted=angle+offset;
    const existing=Math.atan2(previous.b,previous.a);
