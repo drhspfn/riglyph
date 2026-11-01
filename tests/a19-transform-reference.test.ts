@@ -61,6 +61,5 @@ test('A19 chained constraints preserve first constrained world basis and update 
  assertVector(affine(again.world.get('follower')!),followerAfter,'deterministic chain',1e-7);
 });
 
-// The chained A19 reference provides aggregate 0/1/2-constraint matrices but
-// does not include the second constraint's complete parameter record. This
-// oracle is retained as pending, never substituted with invented expectations.
+// The complete independent 0/1/2-constraint reference is verified separately
+// by a19-chained-reference.test.ts.
