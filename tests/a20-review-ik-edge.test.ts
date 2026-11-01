@@ -21,7 +21,7 @@ const world=(base:Affine,first:Transform,second:Transform)=>{
 const near=(a:number,b:number,eps=1e-8)=>assert.ok(Math.abs(a-b)<=eps,`${a} != ${b}`);
 
 test('IK softness selects a solution for the effective target, not the original unreachable target',()=>{
- const first=pose({length:35,scaleX:1.1}),second=pose({x:35,length:25});
+ const first=pose({length:35}),second=pose({x:35,length:25});
  const goal:[number,number]=[80,0],softness=20;
  // First pivot at origin; effective softened reach is 80 - (40-10) = 50.
  const effective:[number,number]=[50,0];
