@@ -276,7 +276,8 @@ export class SkeletonInstance {
    const axisScale=setupLength>1e-9?worldLength/setupLength:1;
    const interval=spacingMode==='percent'?authoredSpacing*geometry.total:
     spacingMode==='length'?worldLength+authoredSpacing*axisScale:
-    spacingMode==='proportional'?lengthSum>1e-9?(lengths[i]!/lengthSum)*geometry.total*authoredSpacing:0:
+    spacingMode==='proportional'?(rotateMode==='tangent'?authoredSpacing*geometry.total:
+     lengthSum>1e-9?(lengths[i]!/lengthSum)*geometry.total*authoredSpacing:0):
     authoredSpacing*axisScale;
    distances.push(distances.at(-1)!+interval);
   }
