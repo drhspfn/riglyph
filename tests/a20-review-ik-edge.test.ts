@@ -20,11 +20,13 @@ const world=(base:Affine,first:Transform,second:Transform)=>{
 };
 const near=(a:number,b:number,eps=1e-8)=>assert.ok(Math.abs(a-b)<=eps,`${a} != ${b}`);
 
-test('IK softness selects a solution for the effective target, not the original unreachable target',()=>{
+test('IK softness selects the reduced target when the original target is at reach',()=>{
  const first=pose({length:35}),second=pose({x:35,length:25});
  const goal:[number,number]=[60,0],softness=20;
  // First pivot at origin; 60 is exactly the unsmoothed reach.
- const effective:[number,number]=[60-400/(40+20/3),0];
+ // At excess === worldSoft the reference softening follows its outer branch:
+ // reduction = excess - worldSoft / 2 = 10.
+ const effective:[number,number]=[50,0];
  for(const bend of [-1,1] as const){
   const full=solveTwoLink({parentBasis:null,first,second,firstInheritance:'normal',
    secondInheritance:'normal',target:goal,bend,mix:1,softness});
