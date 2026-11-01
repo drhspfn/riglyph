@@ -1,19 +1,14 @@
-/** Candidate-side evaluation capability audit. This is *not* evidence of reference parity.
- * A constraint can be inactive in a particular skin or when a mix is zero; callers must
- * repeat this audit after changing skin/clip. A conservative animation scan catches any
- * authored key that can activate a currently unsupported branch.
+/** Version-neutral runtime feature audit. 'supported' means implemented;
+ * numerical source parity is reported separately and remains partial.
+ * The active skin and requested animation clips determine constraint visibility.
  */
-import type {IRDocument,Constraint,Animation,Attachment} from '@riglyph/core';
+import type {IRDocument,Attachment} from '@riglyph/core';
 import {EngineError} from '@riglyph/core';
 
 export type CapabilityStatus='supported'|'unsupported'|'unverified';
 export type ReferenceStatus='UNVERIFIED_NO_REFERENCE'|'NUMERIC_REFERENCE_PARTIAL';
 export type FeatureCapability={feature:string;status:CapabilityStatus;referenceStatus:ReferenceStatus;evidence:'SELF_AUTHORED_TESTS'|'RUNTIME_GUARD'|'NOT_REFERENCE_TESTED'|'INDEPENDENT_NUMERIC_CASES';active:boolean;reason:string;constraintId?:string};
 export type EvaluabilityReport={format:'riglyph-capability-report-v1';source:{family:string;version:string;adapter:string};skinId:string|null;clipIds:string[];fullyEvaluable:boolean;sourceParity:ReferenceStatus;features:FeatureCapability[];unsupported:FeatureCapability[]};
-const enabled=(value:unknown):boolean=>value===true||typeof value==='number'&&Number.isFinite(value)&&value!==0;
-const truthyAtAnyKey=(c:Constraint,clips:readonly Animation[],names:readonly string[]):boolean=>clips.some(clip=>clip.timelines.some(t=>t.targetKind==='constraint'&&t.targetId===c.id&&names.includes(t.property)&&t.keys.some(k=>enabled(k.value))));
-const valueAtAnyKey=(c:Constraint,clips:readonly Animation[],name:string,predicate:(v:unknown)=>boolean)=>clips.some(clip=>clip.timelines.some(t=>t.targetKind==='constraint'&&t.targetId===c.id&&t.property===name&&t.keys.some(k=>predicate(k.value))));
-const flags=(c:Constraint,clips:readonly Animation[],names:readonly string[])=>names.some(name=>enabled(c.parameters[name]))||truthyAtAnyKey(c,clips,names);
 export function inspectEvaluability(ir:IRDocument,{skinId=null,clipIds=[]}:{skinId?:string|null;clipIds?:readonly string[]}={}):EvaluabilityReport{
  if(skinId!==null&&!ir.skeleton.skins.some(s=>s.id===skinId))throw new EngineError('INVALID_SKIN','Capability audit skin does not exist');
  const clips=clipIds.map(id=>{const c=ir.skeleton.animations.find(a=>a.id===id);if(!c)throw new EngineError('ANIMATION_NOT_FOUND','Capability audit clip does not exist');return c;});
@@ -32,10 +27,6 @@ export function inspectEvaluability(ir:IRDocument,{skinId=null,clipIds=[]}:{skin
  for(const c of ir.skeleton.constraints){
   const active=(c.activeInDefaultSkin!==false||!!skin?.activeConstraintIds.includes(c.id))&&c.boneIds.every(b=>activeSkinBones.has(b))&&(!c.targetBoneId||activeSkinBones.has(c.targetBoneId));
   if(!active){add(`constraint.${c.kind}`,'supported',false,'Inactive for selected skin; not evaluated',c.id);continue;}
-  const p=c.parameters,mayMix=(()=>{
-   if(c.kind==='ik')return enabled(p['mix']??1)||valueAtAnyKey(c,clips,'mix',enabled);
-   return (c.kind==='path'?['mixRotate','mixX','mixY']:['mixRotate','mixX','mixY','mixScaleX','mixScaleY','mixShearY']).some(k=>enabled(p[k])||valueAtAnyKey(c,clips,k,enabled));
-  })();
   if(c.kind==='ik'){
    const invalid=c.boneIds.length>2;
    add('constraint.ik',invalid?'unsupported':'supported',true,
@@ -44,8 +35,8 @@ export function inspectEvaluability(ir:IRDocument,{skinId=null,clipIds=[]}:{skin
   }else if(c.kind==='transform'){
    add('constraint.transform','supported',true,'Four local/world absolute/relative modes, six channels; A19 numeric 36-case reference suite, unverified edge cases',c.id);
   }else{
-   // A path uses the target slot attachment; switching attachments in a clip is conservatively
-   // regarded as uncertain rather than accepted based on the setup pose alone.
+   // A path uses the currently selected target slot attachment; runtime
+   // evaluates switching dynamically rather than assuming the setup attachment.
    const slot=ir.skeleton.slots.find(s=>s.id===c.targetSlotId);
    const chosen=ir.skeleton.attachments.find(a=>a.id===slot?.setupAttachmentId);
    const switches=clips.some(a=>a.timelines.some(t=>t.targetKind==='slot'&&t.targetId===slot?.id&&t.property==='attachment'));
