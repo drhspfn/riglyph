@@ -44,6 +44,19 @@ export function solveTwoLink(input:TwoLinkInput):{first:Transform;second:Transfo
   const tip=evalTip(one.rotationDeg,aligned.rotationDeg);
   return{first:one,second:aligned,residual:Math.hypot(tip[0]-target[0],tip[1]-target[1])};
  }
+ // An unreachable chain points both segments at the target. Without a
+ // usable stretch mode, Newton iterations against the impossible target
+ // produce a spurious elbow angle instead of the finite straight chain.
+ if(distance>reach+1e-8&&!canStretch){
+  const aligned=solveOneLink({parentBasis:parent,world:firstWorld,local:first,
+   inheritance:input.firstInheritance,target,mix,
+   compress:false,stretch:false,uniform:false});
+  const follower={...second,rotationDeg:second.rotationDeg+
+   shortestAngleDelta(second.rotationDeg,0)*mix};
+  const tip=evalTip(aligned.rotationDeg,follower.rotationDeg);
+  return {first:aligned,second:follower,
+   residual:Math.hypot(tip[0]-target[0],tip[1]-target[1])};
+ }
  const initial=first.rotationDeg;
  const candidates:{r1:number;r2:number;err:number;score:number}[]=[];
  for(const elbow of [30,75,125,170])for(const shift of [-150,-60,0,60,150]){
