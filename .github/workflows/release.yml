@@ -1,63 +1,90 @@
-name: Riglyph approved npm release (manual + OIDC)
+name: Riglyph npm release (Trusted Publishing / OIDC)
 on:
-  workflow_dispatch:
-    inputs:
-      confirm:
-        description: 'Exact text PUBLISH v0.15.1; execute only on the protected v0.15.1 tag'
-        required: true
-        type: string
+  release:
+    types: [published]
+
 permissions:
   contents: read
+
+concurrency:
+  group: npm-release
+  cancel-in-progress: false
+
 jobs:
   publish:
-    if: github.event.inputs.confirm == 'PUBLISH v0.15.1' && github.ref_type == 'tag' && github.ref_name == 'v0.15.1'
+    if: ${{ !github.event.release.prerelease && !github.event.release.draft }}
     runs-on: ubuntu-latest
-    environment: npm-release  # MUST configure owner-required reviewers before enabling
+    environment: npm-release
     permissions:
       contents: read
       actions: read
       id-token: write
     steps:
+      - name: Verify release tag, source branch and successful tag CI
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = context.payload.release?.tag_name;
+            if (!/^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(tag ?? ''))
+              return core.setFailed('Release tag must be a valid vSemVer tag');
+            const {owner,repo} = context.repo;
+            const ref = await github.rest.git.getRef({owner,repo,ref:'tags/'+tag});
+            let sha = ref.data.object.sha;
+            if (ref.data.object.type === 'tag') {
+              const annotated = await github.rest.git.getTag({owner,repo,tag_sha:sha});
+              if (annotated.data.object.type !== 'commit') return core.setFailed('Tag must resolve to a commit');
+              sha = annotated.data.object.sha;
+            }
+            if (sha !== context.sha) return core.setFailed('Release checkout SHA does not match tag commit');
+            const comparison = await github.rest.repos.compareCommits({owner,repo,base:sha,head:'main'});
+            if (!['ahead','identical'].includes(comparison.data.status))
+              return core.setFailed('Release commit is not reachable from main');
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns,{
+              owner,repo,workflow_id:'ci.yml',head_sha:sha,event:'push',per_page:100
+            });
+            const passed = runs.some(r => r.head_branch === tag && r.head_sha === sha && r.conclusion === 'success');
+            if (!passed) return core.setFailed('Successful tag-push CI on release commit is required');
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          registry-url: 'https://registry.npmjs.org'
           package-manager-cache: false
-      - name: Verify exact protected tag matches checkout and successful CI run
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const tag=context.ref.replace('refs/tags/','');
-            if(tag !== 'v0.15.1') core.setFailed('Ref must be protected release tag');
-            const run=await github.rest.actions.listWorkflowRuns({owner:context.repo.owner,repo:context.repo.repo,workflow_id:'ci.yml',head_sha:context.sha,per_page:100});
-            const green=run.data.workflow_runs.some(r=>r.conclusion==='success' && r.event==='push' && r.head_sha===context.sha);
-            if(!green) core.setFailed('No successful push CI for exact tagged SHA');
-      - run: npm install --global npm@^11.5.1
+      - name: Install npm with Trusted Publishing support
+        run: npm install --global npm@^11.5.1
       - run: node --version && npm --version
+      - name: Verify tag matches all package versions
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const root=JSON.parse(fs.readFileSync("package.json"));
+            if(process.env.RELEASE_TAG!==`v${root.version}`)throw Error("Tag must equal root package version");
+            for(const name of ["core","importer-sdk","runtime","renderer-webgl2","renderer-cpu","importer-spine-4.1","player-web","cli"]){
+              const pkg=JSON.parse(fs.readFileSync(`packages/${name}/package.json`));
+              if(pkg.version!==root.version)throw Error(`Version mismatch: ${name}`);
+            }
+          '
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run build && npm run typecheck && npm test
       - run: npm run pack:check && npm run release:verify && npm run release:dry-run
       - name: Verify scope and owner configuration
         run: |
           node --input-type=module -e "import fs from 'node:fs';const p=JSON.parse(fs.readFileSync('packages/core/package.json'));if(p.repository.url.includes('/OWNER/'))process.exit(1)"
-      - name: Registry preflight rejects all already published or uncertain versions
-        env:
-          RIGLYPH_RELEASE_APPROVED: ${{ github.event.inputs.confirm }}
+      - name: Check all eight npm versions are unpublished
         run: node scripts/check-npm-prepublish.mjs
-      - name: Upload dry-run evidence before publishing
+      - name: Save prepublish evidence
         uses: actions/upload-artifact@v4
         with:
-          name: riglyph-0.15.1-release-prepublish-evidence
+          name: riglyph-prepublish-evidence
           path: |
             release-packages/*.tgz
             release-packages/manifest.json
             release-artifacts/*
-      - name: Publish in strict dependency order using npm Trusted Publisher / OIDC
-        env:
-          RIGLYPH_RELEASE_APPROVED: ${{ github.event.inputs.confirm }}
+      - name: Publish via npm Trusted Publishing / OIDC
         run: node scripts/publish-approved.mjs
-      # Never triggered by PR; never uses static NPM_TOKEN or NODE_AUTH_TOKEN.
-      # A failed partial publish MUST be recovered manually; npm versions cannot be overwritten.
+      # No persistent npm token. npm scope and each existing package must
+      # trust drhspfn/riglyph, workflow release.yml, environment npm-release.
+      # A failed partial publish is fatal; published npm versions are immutable.
