@@ -6,12 +6,31 @@ import type {Affine,Transform,Inheritance} from '@riglyph/core';
 const RAD=Math.PI/180;
 const identity:Affine={a:1,b:0,c:0,d:1,x:0,y:0};
 const wrap=(x:number)=>((x+540)%360+360)%360-180;
-export type TwoLinkInput={parentBasis:Affine|null;first:Transform;second:Transform;firstInheritance:Inheritance;secondInheritance:Inheritance;target:[number,number];bend:1|-1;mix:number};
+export type TwoLinkInput={parentBasis:Affine|null;first:Transform;second:Transform;firstInheritance:Inheritance;secondInheritance:Inheritance;target:[number,number];bend:1|-1;mix:number;softness?:number;stretch?:boolean;uniform?:boolean};
 export function solveTwoLink(input:TwoLinkInput):{first:Transform;second:Transform;residual:number}{
  const {parentBasis,first,second,target,bend,mix}=input;
  const parent=parentBasis??identity;
+ const firstWorld=inheritTransform(parent,first,input.firstInheritance);
+ const childWorld=inheritTransform(firstWorld,second,input.secondInheritance);
+ const firstReach=Math.hypot(childWorld.x-firstWorld.x,childWorld.y-firstWorld.y);
+ const secondReach=Math.abs(second.length)*Math.hypot(childWorld.a,childWorld.b);
+ const reach=firstReach+secondReach;
+ const targetDx=target[0]-firstWorld.x,targetDy=target[1]-firstWorld.y;
+ const distance=Math.hypot(targetDx,targetDy);
+ const softness=Math.max(0,input.softness??0);
+ const scaleX=Math.hypot(parent.a,parent.b),scaleY=Math.hypot(parent.c,parent.d);
+ const canStretch=!!input.stretch&&softness===0&&Math.abs(scaleX-scaleY)<1e-6;
+ const stretchFactor=canStretch&&reach>1e-8&&distance>reach?distance/reach:1;
+ const workingFirst:Transform={...first,scaleX:first.scaleX*stretchFactor,
+  scaleY:first.scaleY*(input.uniform?stretchFactor:1)};
+ let targetGoal:readonly [number,number]=target;
+ if(softness>0&&reach>0&&distance>reach-softness){
+  const outer=reach-softness+softness*(1-Math.exp(-(distance-reach+softness)/softness));
+  const amount=outer/Math.max(distance,1e-9);
+  targetGoal=[firstWorld.x+targetDx*amount,firstWorld.y+targetDy*amount];
+ }
  const evalTip=(r1:number,r2:number)=>{
-  const p=inheritTransform(parent,{...first,rotationDeg:r1},input.firstInheritance);
+  const p=inheritTransform(parent,{...workingFirst,rotationDeg:r1},input.firstInheritance);
   const c=inheritTransform(p,{...second,rotationDeg:r2},input.secondInheritance);
   return apply(c,second.length,0);
  };
@@ -21,15 +40,16 @@ export function solveTwoLink(input:TwoLinkInput):{first:Transform;second:Transfo
    return [(parent.d*dx-parent.c*dy)/det-first.x,(-parent.b*dx+parent.a*dy)/det-first.y] as const;})();
   const direction=inv?Math.atan2(inv[1],inv[0])/RAD:first.rotationDeg;
   const one={...first,rotationDeg:first.rotationDeg+shortestAngleDelta(first.rotationDeg+first.shearXDeg,direction)*mix};
-  const tip=evalTip(one.rotationDeg,second.rotationDeg);
-  return{first:one,second:{...second},residual:Math.hypot(tip[0]-target[0],tip[1]-target[1])};
+  const aligned={...second,rotationDeg:second.rotationDeg+shortestAngleDelta(second.rotationDeg,0)*mix};
+  const tip=evalTip(one.rotationDeg,aligned.rotationDeg);
+  return{first:one,second:aligned,residual:Math.hypot(tip[0]-target[0],tip[1]-target[1])};
  }
  const initial=first.rotationDeg;
  const candidates:{r1:number;r2:number;err:number;score:number}[]=[];
  for(const elbow of [30,75,125,170])for(const shift of [-150,-60,0,60,150]){
   let r1=initial+shift,r2=second.rotationDeg+bend*elbow;
   for(let j=0;j<45;j++){
-   const [x,y]=evalTip(r1,r2),ex=x-target[0],ey=y-target[1];
+   const [x,y]=evalTip(r1,r2),ex=x-targetGoal[0],ey=y-targetGoal[1];
    if(ex*ex+ey*ey<1e-14)break;
    const h=.0005;
    const [x1,y1]=evalTip(r1+h,r2),[x2,y2]=evalTip(r1,r2+h);
@@ -47,7 +67,7 @@ export function solveTwoLink(input:TwoLinkInput):{first:Transform;second:Transfo
  }
  candidates.sort((a,b)=>a.score-b.score);
  const best=candidates[0]!;
- return{first:{...first,rotationDeg:first.rotationDeg+shortestAngleDelta(first.rotationDeg,best.r1)*mix},
+ return{first:{...workingFirst,scaleX:first.scaleX+(workingFirst.scaleX-first.scaleX)*mix,scaleY:first.scaleY+(workingFirst.scaleY-first.scaleY)*mix,rotationDeg:first.rotationDeg+shortestAngleDelta(first.rotationDeg,best.r1)*mix},
   second:{...second,rotationDeg:second.rotationDeg+shortestAngleDelta(second.rotationDeg,best.r2)*mix},residual:best.err};
 }
 
