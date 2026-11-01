@@ -3,7 +3,7 @@ import {resolve} from 'node:path';
 const names=['core','runtime','renderer-webgl2','renderer-cpu','importer-sdk','importer-spine-4.1','player-web','cli'];
 const root=JSON.parse(readFileSync('package.json','utf8'));
 const problems=[];
-if(root.version!=='0.15.1'||!root.private)problems.push('Root version or private flag incorrect');
+if(!/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(root.version)||!root.private)problems.push('Root must have a valid semantic version and remain private');
 for(const name of names){
  const j=JSON.parse(readFileSync(`packages/${name}/package.json`,'utf8'));
  if(j.name!==`@riglyph/${name}`||j.version!==root.version)problems.push(`${name}: name/version`);
