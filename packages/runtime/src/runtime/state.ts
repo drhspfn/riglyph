@@ -8,6 +8,7 @@ import {sequenceFrame} from './sequence.js';
 import type {SequencePlayback} from './sequence.js';
 import {evaluateTransformBone} from './transform-constraint.js';
 import {CubicWorldPath} from './path-geometry.js';
+import {solveOneLink,solveTwoLink} from './ik-solver.js';
 
 export type SlotState={attachmentId:string|null;light:Vec4;dark:Vec3|null;sequenceIndex:number};
 export type EvaluatedEvent={eventId:string;timeSec:number;value:unknown};
@@ -207,32 +208,26 @@ export class SkeletonInstance {
   }
  }
  private ik(c:Constraint):void{
-  const params=this.parameters.get(c.id)!;const mix=typeof params['mix']==='number'?params['mix']:1;
+  const p=this.parameters.get(c.id)!;
+  const mix=Number(p['mix']??1);
   if(mix===0||!c.boneIds.length)return;
-  // Never silently drop numerical properties that alter constrained pose.
-  // Reference-compatible soft IK/stretch has not been specified or tested.
-  requireCondition(Number(params['softness']??0)===0&&!params['compress']&&!params['stretch'],
-   'UNSUPPORTED_SEMANTIC_FEATURE',`IK ${c.id}: softness/compress/stretch requires a reference-tested solver`);
-  requireCondition(c.boneIds.length<=2,'UNSUPPORTED_SEMANTIC_FEATURE','IK solver supports one or two bones');
+  requireCondition(c.boneIds.length<=2,'INVALID_TOPOLOGY','IK supports one or two constrained bones');
+  const first=c.boneIds[0]!,spec=this.ir.skeleton.bones.find(b=>b.id===first)!;
+  const parent=spec.parentId?this.world.get(spec.parentId)!:null;
   const target=this.world.get(c.targetBoneId!)!;
-  const first=c.boneIds[0]!;const b=this.bones.get(first)!,w=this.world.get(first)!;
+  const local=this.applied.get(first)!;
   if(c.boneIds.length===1){
-   const sourceAngle=Math.atan2(w.b,w.a)*180/Math.PI;
-   const intended=Math.atan2(target.y-w.y,target.x-w.x)*180/Math.PI;
-   b.rotationDeg+=shortestAngleDelta(sourceAngle,intended)*mix;return;
+   const next=solveOneLink({parentBasis:parent,world:this.world.get(first)!,local,
+    inheritance:spec.inheritance,target:[target.x,target.y],mix,
+    compress:p['compress']===true,stretch:p['stretch']===true,uniform:p['uniform']===true});
+   this.bones.set(first,next);return;
   }
-  const childId=c.boneIds[1]!,child=this.bones.get(childId)!,w2=this.world.get(childId)!;
-  const len1=Math.hypot(w2.x-w.x,w2.y-w.y),len2=Math.abs(child.length*child.scaleX);
-  requireCondition(len1>1e-8&&len2>1e-8,'UNSUPPORTED_SEMANTIC_FEATURE','Two-bone IK needs nonzero segment lengths');
-  // General 2-link inverse kinematics in world XY. Preserve authored bend sign.
-  const dx=target.x-w.x,dy=target.y-w.y,dist=Math.hypot(dx,dy),d=Math.min(len1+len2,Math.max(Math.abs(len1-len2),dist));
-  const bend=params['bendDirection']===-1?-1:1;
-  const angle2=bend*Math.acos(Math.max(-1,Math.min(1,(d*d-len1*len1-len2*len2)/(2*len1*len2))));
-  const angle1=Math.atan2(dy,dx)-Math.atan2(len2*Math.sin(angle2),len1+len2*Math.cos(angle2));
-  const desiredFirst=angle1*180/Math.PI;
-  const delta=shortestAngleDelta(Math.atan2(w2.y-w.y,w2.x-w.x)*180/Math.PI,desiredFirst);
-  b.rotationDeg+=delta*mix;
-  child.rotationDeg+=shortestAngleDelta(child.rotationDeg,angle2*180/Math.PI)*mix;
+  const childId=c.boneIds[1]!,childSpec=this.ir.skeleton.bones.find(b=>b.id===childId)!;
+  const child=this.applied.get(childId)!;
+  const solved=solveTwoLink({parentBasis:parent,first:local,second:child,
+   firstInheritance:spec.inheritance,secondInheritance:childSpec.inheritance,
+   target:[target.x,target.y],bend:p['bendDirection']===-1?-1:1,mix});
+  this.bones.set(first,solved.first);this.bones.set(childId,solved.second);
  }
  private transformConstraint(c:Constraint):void{
   const p=this.parameters.get(c.id)!;
