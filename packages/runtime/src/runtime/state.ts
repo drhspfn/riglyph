@@ -6,13 +6,14 @@ import type {IRDocument,Transform,Vec3,Vec4,Attachment,Timeline,Constraint,Anima
 import {timelineValue} from './curves.js';
 import {sequenceFrame} from './sequence.js';
 import type {SequencePlayback} from './sequence.js';
+import {evaluateTransformBone} from './transform-constraint.js';
 
 export type SlotState={attachmentId:string|null;light:Vec4;dark:Vec3|null;sequenceIndex:number};
 export type EvaluatedEvent={eventId:string;timeSec:number;value:unknown};
 export type Layer={clipId:string;timeSec:number;loop?:boolean;alpha?:number;mode?:'replace'|'add'};
 const clone=(value:unknown):any=>structuredClone(value);
 export class SkeletonInstance {
- readonly bones=new Map<string,Transform>();readonly world=new Map<string,Affine>();
+ readonly bones=new Map<string,Transform>();readonly world=new Map<string,Affine>();readonly applied=new Map<string,Transform>();
  readonly slots=new Map<string,SlotState>();readonly activeBones=new Set<string>();readonly deforms=new Map<string,Float32Array>();
  readonly parameters=new Map<string,Record<string,number|boolean|string>>();
  readonly assets:Map<string,Attachment>;readonly clips:Map<string,Animation>;
@@ -31,9 +32,9 @@ export class SkeletonInstance {
   this.skinId=id;this.reset();
  }
  reset():void{
-  this.bones.clear();this.world.clear();this.slots.clear();this.activeBones.clear();this.deforms.clear();this.parameters.clear();
+  this.bones.clear();this.world.clear();this.applied.clear();this.slots.clear();this.activeBones.clear();this.deforms.clear();this.parameters.clear();
   const activeSkin=this.ir.skeleton.skins.find(s=>s.id===this.skinId)??this.ir.skeleton.skins.find(s=>s.isDefault);
-  for(const b of this.ir.skeleton.bones){this.bones.set(b.id,copyTransform(b.setup));
+  for(const b of this.ir.skeleton.bones){this.bones.set(b.id,copyTransform(b.setup));this.applied.set(b.id,copyTransform(b.setup));
    if(!b.skinRequired||activeSkin?.activeBoneIds.includes(b.id))this.activeBones.add(b.id);}
   for(const s of this.ir.skeleton.slots){
    // A setup attachment from the default skin is identified by ID; when changing skin
@@ -56,7 +57,7 @@ export class SkeletonInstance {
   for(const b of this.ir.skeleton.bones){
    const local=this.bones.get(b.id)!;
    const m=b.parentId?inheritTransform(this.world.get(b.parentId)!,local,b.inheritance):inheritTransform({a:1,b:0,c:0,d:1,x:0,y:0},local,'normal');
-   this.world.set(b.id,m);
+   this.world.set(b.id,m);this.applied.set(b.id,copyTransform(local));
   }
  }
  private changeNumeric(previous:number,proposed:number,alpha:number,mode:'replace'|'add',angle=false):number{
@@ -170,16 +171,38 @@ export class SkeletonInstance {
   }
   this.updateWorld();this.evaluateConstraints();return this;
  }
+ /** Rebuild descendants only; a previously constrained world matrix is never
+  * discarded by a global reset. The parent must already have its final basis.
+  */
+ private updateDescendants(changed:ReadonlySet<string>):void{
+  const dirty=new Set(changed);
+  for(const bone of this.ir.skeleton.bones){
+   if(!bone.parentId||!dirty.has(bone.parentId)||dirty.has(bone.id))continue;
+   const parent=this.world.get(bone.parentId)!;
+   const t=this.applied.get(bone.id)!;
+   this.world.set(bone.id,inheritTransform(parent,t,bone.inheritance));
+   dirty.add(bone.id);
+  }
+ }
+ private refreshLocalConstraint(ids:readonly string[]):void{
+  for(const id of ids){
+   const b=this.ir.skeleton.bones.find(b=>b.id===id)!;
+   const parent=b.parentId?this.world.get(b.parentId)!:{a:1,b:0,c:0,d:1,x:0,y:0};
+   const local=this.bones.get(id)!;
+   this.world.set(id,inheritTransform(parent,local,b.inheritance));
+   this.applied.set(id,copyTransform(local));
+   this.updateDescendants(new Set([id]));
+  }
+ }
  private evaluateConstraints():void{
   const sorted=[...this.ir.skeleton.constraints].sort((a,b)=>a.order-b.order);
   const skin=this.ir.skeleton.skins.find(s=>s.id===this.skinId)??this.ir.skeleton.skins.find(s=>s.isDefault);
   for(const c of sorted){
    if(c.activeInDefaultSkin===false&&!skin?.activeConstraintIds.includes(c.id))continue;
    if(c.boneIds.some(id=>!this.activeBones.has(id))||(c.targetBoneId&&!this.activeBones.has(c.targetBoneId)))continue;
-   if(c.kind==='ik')this.ik(c);
+   if(c.kind==='ik'){this.ik(c);this.refreshLocalConstraint(c.boneIds);}
    else if(c.kind==='transform')this.transformConstraint(c);
-   else this.pathConstraint(c);
-   this.updateWorld();
+   else{this.pathConstraint(c);this.refreshLocalConstraint(c.boneIds);}
   }
  }
  private ik(c:Constraint):void{
@@ -211,25 +234,15 @@ export class SkeletonInstance {
   child.rotationDeg+=shortestAngleDelta(child.rotationDeg,angle2*180/Math.PI)*mix;
  }
  private transformConstraint(c:Constraint):void{
-  const p=this.parameters.get(c.id)!,target=this.world.get(c.targetBoneId!)!;
-  // Scale/shear channels are preserved in the IR, but not silently ignored at runtime.
-  requireCondition(Number(p['mixScaleX']??0)===0&&Number(p['mixScaleY']??0)===0&&Number(p['mixShearY']??0)===0,
-   'UNSUPPORTED_SEMANTIC_FEATURE',`Transform constraint ${c.id}: scale/shear mixing is not implemented`);
-  for(const id of c.boneIds){const local=this.bones.get(id)!,world=this.world.get(id)!;
-   const mixRotate=Number(p['mixRotate']??0),mixX=Number(p['mixX']??0),mixY=Number(p['mixY']??0);
-   const rotOffset=Number(p['offsetRotation']??0),xOffset=Number(p['offsetX']??0),yOffset=Number(p['offsetY']??0);
-   const localMode=p['local']===true,relative=p['relative']===true;
-   if(localMode){const targetLocal=this.bones.get(c.targetBoneId!)!;
-    local.rotationDeg=mixAngle(local.rotationDeg,(relative?local.rotationDeg:0)+targetLocal.rotationDeg+rotOffset,mixRotate);
-    local.x+=(targetLocal.x+xOffset-(relative?0:local.x))*mixX;local.y+=(targetLocal.y+yOffset-(relative?0:local.y))*mixY;
-   }else{
-    const angle=Math.atan2(target.b,target.a)*180/Math.PI+rotOffset;
-    local.rotationDeg+=shortestAngleDelta(Math.atan2(world.b,world.a)*180/Math.PI,angle)*mixRotate;
-    const point=apply(target,xOffset,yOffset);const owner=this.ir.skeleton.bones.find(b=>b.id===id)!;
-    const parent=owner.parentId?this.world.get(owner.parentId)!:null;
-    const desired=parent?apply(invert(parent),point[0],point[1]):point;
-    local.x+=(desired[0]-(relative?0:local.x))*mixX;local.y+=(desired[1]-(relative?0:local.y))*mixY;
-   }
+  const p=this.parameters.get(c.id)!;
+  for(const id of c.boneIds){
+   const bone=this.ir.skeleton.bones.find(b=>b.id===id)!;
+   const parent=bone.parentId?this.world.get(bone.parentId)!:null;
+   const targetWorld=this.world.get(c.targetBoneId!)!;
+   const targetApplied=this.applied.get(c.targetBoneId!)!;
+   const res=evaluateTransformBone(this.world.get(id)!,targetWorld,this.applied.get(id)!,targetApplied,parent,bone.inheritance,p);
+   this.world.set(id,res.world);this.applied.set(id,res.applied);
+   this.updateDescendants(new Set([id]));
   }
  }
  /** Self-authored cubic path sampler; source-compatibility with 4.1 distance modes is unverified. */

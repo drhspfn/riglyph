@@ -34,8 +34,7 @@ export function inspectEvaluability(ir:IRDocument,{skinId=null,clipIds=[]}:{skin
    const risky=mayMix&&(flags(c,clips,['softness','compress','stretch'])||c.boneIds.length>2||c.boneIds.length===2&&ir.skeleton.bones.some(b=>b.id===c.boneIds[1]&&b.setup.length===0));
    add('constraint.ik',risky?'unsupported':'supported',true,risky?'IK softness/compress/stretch or unsupported chain configuration may be active':'Local one/two-bone baseline only',c.id);
   }else if(c.kind==='transform'){
-   const risky=flags(c,clips,['mixScaleX','mixScaleY','mixShearY']);
-   add('constraint.transform',risky?'unsupported':'supported',true,risky?'Scale/shear mixing is guarded at runtime':'Local translation/rotation mixing only',c.id);
+   add('constraint.transform','supported',true,'Four local/world absolute/relative modes, six channels; A19 numeric 36-case reference suite, unverified edge cases',c.id);
   }else{
    // A path uses the target slot attachment; switching attachments in a clip is conservatively
    // regarded as uncertain rather than accepted based on the setup pose alone.
