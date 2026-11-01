@@ -34,7 +34,11 @@ function make(p:Parameters):IRDocument{
    offsetRotation:p.offset}});
  ir.capabilities.push('path','path_constraint');if(p.weighted)ir.capabilities.push('weighted_mesh');
  if(p.deform){
-  const floatCount=p.weighted?24:12,values=Array.from({length:floatCount},(_,i)=>i%2? -2.25:1.5);
+  const floatCount=p.weighted?24:12;
+  // Spine unweighted wire deform stores absolute vertex coordinates; the
+  // canonical IR keeps vertex_delta. Weighted wire data are influence deltas.
+  const values=p.weighted?Array.from({length:floatCount},(_,i)=>i%2?-2.25:1.5):
+   coords.flatMap(([x,y])=>[1.5-x,-2.25-y]);
   ir.skeleton.animations=[{id:'deform',name:'deform',durationSec:1,timelines:[{
    targetKind:'attachment',targetId:'path',property:'deform',
    deformBasis:p.weighted?'influence_delta':'vertex_delta',keys:[
