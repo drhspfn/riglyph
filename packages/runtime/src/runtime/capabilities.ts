@@ -7,8 +7,9 @@ import type {IRDocument,Constraint,Animation,Attachment} from '@riglyph/core';
 import {EngineError} from '@riglyph/core';
 
 export type CapabilityStatus='supported'|'unsupported'|'unverified';
-export type FeatureCapability={feature:string;status:CapabilityStatus;referenceStatus:'UNVERIFIED_NO_REFERENCE';evidence:'SELF_AUTHORED_TESTS'|'RUNTIME_GUARD'|'NOT_REFERENCE_TESTED';active:boolean;reason:string;constraintId?:string};
-export type EvaluabilityReport={format:'riglyph-capability-report-v1';source:{family:string;version:string;adapter:string};skinId:string|null;clipIds:string[];fullyEvaluable:boolean;sourceParity:'UNVERIFIED_NO_REFERENCE';features:FeatureCapability[];unsupported:FeatureCapability[]};
+export type ReferenceStatus='UNVERIFIED_NO_REFERENCE'|'NUMERIC_REFERENCE_PARTIAL';
+export type FeatureCapability={feature:string;status:CapabilityStatus;referenceStatus:ReferenceStatus;evidence:'SELF_AUTHORED_TESTS'|'RUNTIME_GUARD'|'NOT_REFERENCE_TESTED'|'INDEPENDENT_NUMERIC_CASES';active:boolean;reason:string;constraintId?:string};
+export type EvaluabilityReport={format:'riglyph-capability-report-v1';source:{family:string;version:string;adapter:string};skinId:string|null;clipIds:string[];fullyEvaluable:boolean;sourceParity:ReferenceStatus;features:FeatureCapability[];unsupported:FeatureCapability[]};
 const enabled=(value:unknown):boolean=>value===true||typeof value==='number'&&Number.isFinite(value)&&value!==0;
 const truthyAtAnyKey=(c:Constraint,clips:readonly Animation[],names:readonly string[]):boolean=>clips.some(clip=>clip.timelines.some(t=>t.targetKind==='constraint'&&t.targetId===c.id&&names.includes(t.property)&&t.keys.some(k=>enabled(k.value))));
 const valueAtAnyKey=(c:Constraint,clips:readonly Animation[],name:string,predicate:(v:unknown)=>boolean)=>clips.some(clip=>clip.timelines.some(t=>t.targetKind==='constraint'&&t.targetId===c.id&&t.property===name&&t.keys.some(k=>predicate(k.value))));
@@ -19,7 +20,12 @@ export function inspectEvaluability(ir:IRDocument,{skinId=null,clipIds=[]}:{skin
  const skin=ir.skeleton.skins.find(s=>s.id===skinId)??ir.skeleton.skins.find(s=>s.isDefault);
  const features:FeatureCapability[]=[];
  const add=(feature:string,status:CapabilityStatus,active:boolean,reason:string,constraintId?:string)=>{
-  features.push({feature,status,active,reason,referenceStatus:'UNVERIFIED_NO_REFERENCE',evidence:status==='unsupported'?'RUNTIME_GUARD':status==='unverified'?'NOT_REFERENCE_TESTED':'SELF_AUTHORED_TESTS',...(constraintId?{constraintId}:{})});
+  const hasNumericReference=['constraint.ik','constraint.path','constraint.transform'].includes(feature);
+  features.push({feature,status,active,reason,
+   referenceStatus:hasNumericReference?'NUMERIC_REFERENCE_PARTIAL':'UNVERIFIED_NO_REFERENCE',
+   evidence:status==='unsupported'?'RUNTIME_GUARD':hasNumericReference?'INDEPENDENT_NUMERIC_CASES':
+    status==='unverified'?'NOT_REFERENCE_TESTED':'SELF_AUTHORED_TESTS',
+   ...(constraintId?{constraintId}:{})});
  };
  add('bone.inheritance','supported',ir.skeleton.bones.length>0,'Local transform evaluator; reference parity not measured');
  const activeSkinBones=new Set(ir.skeleton.bones.filter(b=>!b.skinRequired||skin?.activeBoneIds.includes(b.id)).map(b=>b.id));
@@ -35,8 +41,8 @@ export function inspectEvaluability(ir:IRDocument,{skinId=null,clipIds=[]}:{skin
    const advanced=mayMix&&(flags(c,clips,['softness','compress','stretch'])||c.boneIds.length===2);
    add('constraint.ik',invalid?'unsupported':advanced?'unverified':'supported',true,
     invalid?'IK longer than two bones is outside the supported profile':
-    advanced?'Independent IK solver covers this configuration; numerical source parity is not yet established':
-    'Parent-space single-bone local solver and synthetic numeric cases',c.id);
+    advanced?'IK solver matches 57 independent reference cases; unmeasured combinations remain conservative':
+    'Parent-space single-bone solver: A19/A20 57-case numeric reference matrix',c.id);
   }else if(c.kind==='transform'){
    add('constraint.transform','supported',true,'Four local/world absolute/relative modes, six channels; A19 numeric 36-case reference suite, unverified edge cases',c.id);
   }else{
@@ -53,9 +59,9 @@ export function inspectEvaluability(ir:IRDocument,{skinId=null,clipIds=[]}:{skin
    const missing=chosen!==undefined&&chosen.kind!=='path';
    const uncertain=switches||chosen===undefined;
    add('constraint.path',weighted||nonConstant||advanced||uncertain?'unverified':'supported',true,
-    weighted?'Weighted path world vertices are evaluated; numerical parity not established':
-    nonConstant?'Authored curve lengths are evaluated; numerical parity not established':
-    advanced?'Chain orientation/spacing are implemented but source numerical parity is not established':
+    weighted?'Weighted paths exercised by 209 numeric reference cases; remaining combinations conservatively unverified':
+    nonConstant?'Nonconstant-speed authored lengths exercised by 209 numeric reference cases; remaining combinations conservatively unverified':
+    advanced?'Chain and spacing modes pass the 209-case numeric reference matrix; combinations beyond that matrix remain unverified':
     uncertain?'Active attachment can change with animation or skin; audit is conservative':
     missing?'Non-path attachment produces a defined no-op':
     'World-space cubic sampler with independent XY/rotation mixing, local synthetic tests',c.id);
@@ -71,5 +77,5 @@ export function inspectEvaluability(ir:IRDocument,{skinId=null,clipIds=[]}:{skin
  add('animation.sequences','supported',attachments.some(a=>'sequence'in a&&a.sequence!==null),'Local sequence tests; missing pages produce typed runtime error');
  add('animation.events','supported',clips.some(a=>a.timelines.some(t=>t.targetKind==='event')),'Local event ordering tests only');
  add('animation.mixing','supported',clips.length>1,'Local multi-track evaluation tests only');
- return {format:'riglyph-capability-report-v1',source:{family:ir.source.family,version:ir.source.version,adapter:ir.source.adapter},skinId,clipIds:[...clipIds],fullyEvaluable:features.every(f=>!f.active||f.status==='supported'),sourceParity:'UNVERIFIED_NO_REFERENCE',features,unsupported:features.filter(f=>f.active&&f.status!=='supported')};
+ return {format:'riglyph-capability-report-v1',source:{family:ir.source.family,version:ir.source.version,adapter:ir.source.adapter},skinId,clipIds:[...clipIds],fullyEvaluable:features.every(f=>!f.active||f.status==='supported'),sourceParity:'NUMERIC_REFERENCE_PARTIAL',features,unsupported:features.filter(f=>f.active&&f.status!=='supported')};
 }
