@@ -33,12 +33,12 @@ for(const row of rows)test(`independent A20 IK ${row[0]}`,()=>{
  const instance=new SkeletonInstance(make(row)).evaluate();
  const expected=[row[14],row[15]];
  let maximum=0;
+ const observations:string[]=[];
  for(const [i,name] of ['parent','child'].entries()){
   const actual=matrix(instance.world.get(name)!);
-  for(let j=0;j<6;j++){
-   const diff=Math.abs(actual[j]!-expected[i]![j]!);
-   maximum=Math.max(maximum,diff);
-   assert.ok(diff<=1e-4,`${row[0]} ${name} component ${j} expected ${expected[i]![j]} actual ${actual[j]} maxDelta=${maximum}`);
-  }
+  const errors=actual.map((v,j)=>Math.abs(v-expected[i]![j]!));
+  maximum=Math.max(maximum,...errors);
+  observations.push(`${name}: expected=[${expected[i]}] actual=[${actual}] deltas=[${errors}]`);
  }
+ assert.ok(maximum<=1e-4,`${row[0]} maxDelta=${maximum} ${observations.join(' | ')}`);
 });
