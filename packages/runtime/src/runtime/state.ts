@@ -283,10 +283,14 @@ export class SkeletonInstance {
   }
   const ownerWorld=this.world.get(owner.boneId)!;
   const reflection=ownerWorld.a*ownerWorld.d-ownerWorld.b*ownerWorld.c<0?-1:1;
+  // Sampling all positions in traversal order preserves the path-profile
+  // cursor semantics for descending closed paths. A standalone sample()
+  // continues to provide deterministic random access to the same geometry.
+  const sampled=geometry.sampleSequence(distances);
   for(let i=0;i<c.boneIds.length;i++){
    const boneId=c.boneIds[i]!,previous=originals.get(boneId)!;
-   const current=geometry.sample(distances[i]!);
-   const next=rotateMode==='tangent'?null:geometry.sample(distances[i+1]!);
+   const current=sampled[i]!;
+   const next=rotateMode==='tangent'?null:sampled[i+1]!;
    // Exactly coincident samples have no chain direction. A zero vector
    // retains atan2(0, 0) semantics; distinct sub-epsilon samples retain
    // the stable tangent fallback (avoiding cancellation in float64).
