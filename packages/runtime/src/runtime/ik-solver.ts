@@ -92,8 +92,10 @@ export function solveOneLink(input:OneLinkInput):Transform{
  if(local.scaleX<0)desired+=180;
  const source=local.rotationDeg+local.shearXDeg;
  const out:Transform={...local,rotationDeg:local.rotationDeg+shortestAngleDelta(source,desired)*mix};
- if((input.compress||input.stretch)&&Math.abs(local.length)>1e-10){
-  const updated=inheritTransform(parent,out,input.inheritance);
+ if((input.compress||input.stretch)&&local.scaleX>0&&Math.abs(local.length)>1e-10){
+  // Reach-scale decisions use the fully aimed axis even for a partial mix.
+  const aimed={...local,rotationDeg:local.rotationDeg+shortestAngleDelta(source,desired)};
+  const updated=inheritTransform(parent,aimed,input.inheritance);
   const currentLength=Math.abs(local.length)*Math.hypot(updated.a,updated.b);
   if(currentLength>1e-10){
    const targetLength=Math.hypot(dx,dy);
