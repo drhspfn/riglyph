@@ -291,8 +291,16 @@ export class SkeletonInstance {
    // retains atan2(0, 0) semantics; distinct sub-epsilon samples retain
    // the stable tangent fallback (avoiding cancellation in float64).
    const dx=next?next.x-current.x:0,dy=next?next.y-current.y:0;
+   // A near-coincident but nonzero chord is ill-conditioned. Estimate
+   // its direction from a finite backward arc-length secant rather than
+   // subtracting two nearly equal world positions. The 0.1-unit cap
+   // bounds curvature error without depending on coordinate magnitude.
+   const stableDirection=()=>{
+    const preceding=geometry.sample(distances[i]!-Math.min(.1,geometry.total*1e-3));
+    return Math.atan2(current.y-preceding.y,current.x-preceding.x);
+   };
    const angle=next?(dx===0&&dy===0?0:
-    Math.hypot(dx,dy)>1e-8?Math.atan2(dy,dx):current.angle):current.angle;
+    Math.hypot(dx,dy)>1e-8?Math.atan2(dy,dx):stableDirection()):current.angle;
    const offset=Number(p['offsetRotation']??0)*Math.PI/180*reflection;
    const wanted=angle+offset;
    const existing=Math.atan2(previous.b,previous.a);
