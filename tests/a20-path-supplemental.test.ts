@@ -1,7 +1,7 @@
 /** A20 17 independent supplemental Path observations. Goldens are losslessly
  * deflated: expected matrices and original parameters remain unchanged.
  */
-import {test} from 'node:test';
+import {test,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {inflateSync} from 'node:zlib';
 import {fixture,addBone} from './helpers.js';
@@ -15,6 +15,8 @@ const rows=JSON.parse(inflateSync(Buffer.from('eNrtWEtvG8kR/i88Dwf17mrf9pZLgCCbQ
 assert.equal(rows.length,17);
 const coords:[number,number][]=[[-20,0],[0,0],[30,0],[60,20],[90,30],[110,20]];
 const matrix=(m:Affine)=>[m.a,m.c,m.b,m.d,m.x,m.y];
+let measuredCases=0,numericMaxDelta=0;
+after(()=>console.log('NUMERIC_REFERENCE_SUMMARY A20 Path: '+measuredCases+' cases, maxAbsDelta='+numericMaxDelta.toPrecision(12)));
 function make(p:Parameters):IRDocument{
  const ir=fixture(),root=ir.skeleton.bones[0]!;
  Object.assign(root.setup,{x:20,y:-10,rotationDeg:17,scaleX:p.rootSX,scaleY:.9});
@@ -60,5 +62,7 @@ for(const [id,p,expected] of rows)test(`${id}: independent Path affine`,()=>{
   errors.forEach((delta,j)=>{const limit=pathReferenceTolerance(expected[i]![j]!,j);if(delta>limit)outOfBudget.push(`${name}[${j}]: delta=${delta}, limit=${limit}`);});
   details.push(`${name} expected=[${expected[i]}] actual=[${actual}]`);
  }
+ measuredCases++;
+ numericMaxDelta=Math.max(numericMaxDelta,max);
  assert.ok(outOfBudget.length===0,`${id}: maxDelta=${max} outOfBudget=[${outOfBudget}] ${details.join(' | ')}`);
 });
