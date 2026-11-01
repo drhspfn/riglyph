@@ -301,7 +301,12 @@ export class SkeletonInstance {
    // bounds curvature error without depending on coordinate magnitude.
    const stableDirection=()=>{
     const preceding=geometry.sample(distances[i]!-Math.min(.1,geometry.total*1e-3));
-    return Math.atan2(current.y-preceding.y,current.x-preceding.x);
+    // A negative spacing traverses the chord backwards. The stable
+    // backward secant represents the forward tangent, so reverse its sign
+    // before forming the angle; otherwise the direction flips by PI at
+    // the 1e-8 threshold as the exact chord becomes numerically resolvable.
+    const sign=distances[i+1]!<distances[i]!?-1:1;
+    return Math.atan2(sign*(current.y-preceding.y),sign*(current.x-preceding.x));
    };
    const angle=next?(dx===0&&dy===0?0:
     Math.hypot(dx,dy)>1e-8?Math.atan2(dy,dx):stableDirection()):current.angle;
