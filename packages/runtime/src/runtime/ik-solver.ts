@@ -38,12 +38,16 @@ export function solveTwoLink(input:TwoLinkInput):{first:Transform;second:Transfo
    targetGoal=[firstWorld.x+targetDx*amount,firstWorld.y+targetDy*amount];
   }
  }
+ const goalDistance=Math.hypot(targetGoal[0]-firstWorld.x,targetGoal[1]-firstWorld.y);
  const evalTip=(r1:number,r2:number)=>{
   const p=inheritTransform(parent,{...workingFirst,rotationDeg:r1},input.firstInheritance);
   const c=inheritTransform(p,{...second,rotationDeg:r2},input.secondInheritance);
   return apply(c,second.length,0);
  };
- if(second.x===0){
+ // The zero-pivot branch is genuinely singular only when both components
+ // of the child's offset vanish. A nonzero local Y still provides a first
+ // IK lever and must use the full two-variable solve (including shear).
+ if(second.x===0&&second.y===0){
   const inv=(()=>{const det=parent.a*parent.d-parent.b*parent.c;if(Math.abs(det)<1e-10)return null;
    const dx=target[0]-parent.x,dy=target[1]-parent.y;
    return [(parent.d*dx-parent.c*dy)/det-first.x,(-parent.b*dx+parent.a*dy)/det-first.y] as const;})();
@@ -56,9 +60,9 @@ export function solveTwoLink(input:TwoLinkInput):{first:Transform;second:Transfo
  // An unreachable chain points both segments at the target. Without a
  // usable stretch mode, Newton iterations against the impossible target
  // produce a spurious elbow angle instead of the finite straight chain.
- if(distance>reach+1e-8&&!canStretch){
+ if(goalDistance>reach+1e-8&&!canStretch){
   const aligned=solveOneLink({parentBasis:parent,world:firstWorld,local:first,
-   inheritance:input.firstInheritance,target,mix,
+   inheritance:input.firstInheritance,target:[targetGoal[0],targetGoal[1]],mix,
    compress:false,stretch:false,uniform:false});
   const follower={...second,rotationDeg:second.rotationDeg+
    shortestAngleDelta(second.rotationDeg,0)*mix};
@@ -81,7 +85,10 @@ export function solveTwoLink(input:TwoLinkInput):{first:Transform;second:Transfo
    const dr2=Math.max(-40,Math.min(40,(-c*ex+a*ey)/det));
    r1-=dr1;r2-=dr2;
   }
-  const [x,y]=evalTip(r1,r2),err=Math.hypot(x-target[0],y-target[1]);
+  // Newton iterations solve the softened target. Ranking against the
+  // original unsoftened target would select a worse IK pose when softness
+  // moves the goal substantially (particularly with multiple elbows).
+  const [x,y]=evalTip(r1,r2),err=Math.hypot(x-targetGoal[0],y-targetGoal[1]);
   const elbowAngle=wrap(r2+second.shearXDeg);
   const valid=Math.sin(elbowAngle*RAD)*bend>=-1e-6;
   const deviation=Math.abs(shortestAngleDelta(initial,r1))+.03*Math.abs(shortestAngleDelta(second.rotationDeg,r2));
