@@ -1,5 +1,26 @@
 # A20 Path reference diagnostics — 2026-11-01
 
+## Resolution
+
+The five failures documented below were resolved on commit
+`c900156ff20925aa2c42ee13743824af95ffe225`. All six CI jobs passed:
+https://github.com/drhspfn/riglyph/actions/runs/41343238806
+The independent cases are **57/57 IK** and **209/209 Path**, with original
+reference data and tolerances unchanged.
+
+The cause was a forward-only cursor over the 10-interval Bézier arclength table
+while a constraint samples ordered positions on the same curve. An interval
+index can advance but does not move backward, even when negative spacing or
+a closed-path wrap reduces the fraction. Switching curves resets the cursor.
+
+Previously each bone sampled independently with a fresh table search.
+`CubicWorldPath.sampleSequence()` now reproduces the observed ordered
+behavior while `sample()` remains stateless. The ghost point differences
+from the A19 cases are explained by the retained table interval, not by
+float32 rounding, special-case offsets or changed golden values.
+
+The following sections preserve historical pre-fix measurements.
+
 ## Scope / reproducibility
 
 Branch `feat/spine41-ik-path-completion`; last evaluated commit `ffe962581d488d28222f73d756ff6495cd653aa4`.
@@ -60,7 +81,7 @@ A separate experiment with simulated float32 control vertices, tables and
 spacing accumulation did not reproduce the discrepancy. Float32 rounding alone
 does not establish parity, nor justify loosening acceptance.
 
-## Guardrails and remaining work
+## Acceptance guardrails
 
 - Match reference on full six-component matrices; never rewrite goldens.
 - Diagnose geometric distances and the last virtual sample independently from
@@ -68,8 +89,7 @@ does not establish parity, nor justify loosening acceptance.
 - Validate non-reflected cases, both weighted states, open/closed,
   multiple curves and repeated seek after *every* numeric change.
 - Preserve zero-offset chain-tip semantics and its new synthetic tests.
-- Keep PR in Draft and `sourceParity` unverified until all 209 Path and 57 IK
-  independent oracles pass and the six CI jobs are green on the final commit.
+- Keep PR in Draft until full CI is green on the final commit; partial numeric
+  parity does not imply full source or pixel parity.
 
-This document reports observations and hypotheses only; the five numerical
-regressions remain blocking.
+The five numerical failures above are historical and have been resolved.
