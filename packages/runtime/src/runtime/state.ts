@@ -226,7 +226,8 @@ export class SkeletonInstance {
   const child=this.applied.get(childId)!;
   const solved=solveTwoLink({parentBasis:parent,first:local,second:child,
    firstInheritance:spec.inheritance,secondInheritance:childSpec.inheritance,
-   target:[target.x,target.y],bend:p['bendDirection']===-1?-1:1,mix});
+   target:[target.x,target.y],bend:p['bendDirection']===-1?-1:1,mix,
+   softness:Number(p['softness']??0),stretch:p['stretch']===true,uniform:p['uniform']===true});
   this.bones.set(first,solved.first);this.bones.set(childId,solved.second);
  }
  private transformConstraint(c:Constraint):void{
