@@ -70,7 +70,18 @@ export class CubicWorldPath {
   }
   this.total=this.cumulative.at(-1)!;
  }
- sample(distance:number):PathPoint{
+ /** Evaluate a sequence of path positions with one traversal context. On the
+  * independent 4.1 reference profile, a descending traversal inside the same
+  * closed Bézier retains its previous 1/10 arc-table interval, including when
+  * the next position lies to the left of that interval. Ordinary sample()
+  * remains stateless and independent of call order.
+  */
+ sampleSequence(distances:readonly number[]):PathPoint[]{
+  const cursor={distance:Number.NaN,curve:-1,interval:0};
+  return distances.map(distance=>this.sampleInternal(distance,cursor));
+ }
+ sample(distance:number):PathPoint{return this.sampleInternal(distance);}
+ private sampleInternal(distance:number,cursor?:{distance:number;curve:number;interval:number}):PathPoint{
   if(!Number.isFinite(distance))throw new RangeError('Nonfinite path distance');
   if(this.total<EPS){
    const first=this.curves[0]!,p=first.a;
@@ -96,9 +107,14 @@ export class CubicWorldPath {
   if(this.constantSpeed&&q.total>EPS){
    const wanted=t*q.table.at(-1)!;
    let low=0,high=STEPS;
-   while(low+1<high){const mid=(low+high)>>1;if(q.table[mid]!<wanted)low=mid;else high=mid;}
+   if(cursor&&this.closed&&distance<cursor.distance&&segment===cursor.curve){
+    low=cursor.interval;high=Math.min(STEPS,low+1);
+   }else{
+    while(low+1<high){const mid=(low+high)>>1;if(q.table[mid]!<wanted)low=mid;else high=mid;}
+   }
    const start=q.table[low]!,end=q.table[high]!;
    t=(low+(end-start>EPS?(wanted-start)/(end-start):0))/STEPS;
+   if(cursor){cursor.distance=distance;cursor.curve=segment;cursor.interval=low;}
   }
   const point=bezier(q,t);
   return{x:point.x,y:point.y,angle:angle(q,t)};
