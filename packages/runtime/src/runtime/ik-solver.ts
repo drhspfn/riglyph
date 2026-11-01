@@ -24,10 +24,19 @@ export function solveTwoLink(input:TwoLinkInput):{first:Transform;second:Transfo
  const workingFirst:Transform={...first,scaleX:first.scaleX*stretchFactor,
   scaleY:first.scaleY*(input.uniform?stretchFactor:1)};
  let targetGoal:readonly [number,number]=target;
- if(softness>0&&reach>0&&distance>reach-softness){
-  const outer=reach-softness+softness*(1-Math.exp(-(distance-reach+softness)/softness));
-  const amount=outer/Math.max(distance,1e-9);
-  targetGoal=[firstWorld.x+targetDx*amount,firstWorld.y+targetDy*amount];
+ if(softness>0&&firstReach>0){
+  // The maximum extension uses the straight (aligned) child axis rather
+  // than its current setup rotation. Apply a smooth reach reduction only
+  // in the outer softness interval, measured in world units.
+  const alignedReach=firstReach+Math.abs(second.length)*Math.hypot(firstWorld.a,firstWorld.b);
+  const worldSoft=softness*Math.hypot(parent.a,parent.b);
+  const excess=distance-alignedReach+worldSoft;
+  if(worldSoft>1e-9&&excess>0){
+   const reduction=excess<worldSoft?excess*excess/(2*worldSoft):
+    Math.min(distance,excess-worldSoft/2);
+   const amount=Math.max(0,distance-reduction)/Math.max(distance,1e-9);
+   targetGoal=[firstWorld.x+targetDx*amount,firstWorld.y+targetDy*amount];
+  }
  }
  const evalTip=(r1:number,r2:number)=>{
   const p=inheritTransform(parent,{...workingFirst,rotationDeg:r1},input.firstInheritance);
