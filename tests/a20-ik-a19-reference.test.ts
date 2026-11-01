@@ -2,7 +2,7 @@
  * executor. Compressed losslessly to keep self-authored synthetic fixture small.
  * No official runtime code, JAR, game data or binaries are embedded.
  */
-import {test} from 'node:test';
+import {test,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {inflateSync} from 'node:zlib';
 import {fixture,addBone} from './helpers.js';
@@ -31,6 +31,8 @@ function make(row:Oracle):IRDocument{
  ir.capabilities.push('ik_constraint');validateIR(ir);return ir;
 }
 const matrix=(m:Affine)=>[m.a,m.c,m.b,m.d,m.x,m.y];
+let measuredCases=0,numericMaxDelta=0;
+after(()=>console.log('NUMERIC_REFERENCE_SUMMARY A19 IK: '+measuredCases+' cases, maxAbsDelta='+numericMaxDelta.toPrecision(12)));
 for(const [index,row] of corpus.cases.entries())test(`A19 IK reference ${index+1}/40`,()=>{
  const instance=new SkeletonInstance(make(row)).evaluate();
  const names=['parent','child'] as const;
@@ -43,5 +45,7 @@ for(const [index,row] of corpus.cases.entries())test(`A19 IK reference ${index+1
   worst=Math.max(worst,...deltas);
   comparisons.push(`${name} expected=[${expected}] actual=[${actual}]`);
  }
+ measuredCases++;
+ numericMaxDelta=Math.max(numericMaxDelta,worst);
  assert.ok(worst<=1e-4,`A19 IK ${index+1} maxDelta=${worst}; ${comparisons.join(' | ')}`);
 });
