@@ -306,11 +306,23 @@ export class SkeletonInstance {
    const existing=Math.atan2(previous.b,previous.a);
    const delta=Math.atan2(Math.sin(wanted-existing),Math.cos(wanted-existing))*mixRotate;
    const cos=Math.cos(delta),sin=Math.sin(delta);
+   // With zero offset, chain mode joins each bone to its predecessor's
+   // evaluated tip. ChainScale and tangent retain independent path origins.
+   // Do not snap when rotation mixing is disabled: translation mixes remain
+   // independent in that case.
+   let targetX=current.x,targetY=current.y;
+   if(rotateMode==='chain'&&Number(p['offsetRotation']??0)===0&&mixRotate!==0&&i>0){
+    const predecessorId=c.boneIds[i-1]!;
+    const predecessor=this.world.get(predecessorId)!;
+    const predecessorLength=this.ir.skeleton.bones.find(b=>b.id===predecessorId)!.setup.length;
+    targetX=predecessor.x+predecessor.a*predecessorLength;
+    targetY=predecessor.y+predecessor.b*predecessorLength;
+   }
    const result:Affine={
     a:cos*previous.a-sin*previous.b,b:sin*previous.a+cos*previous.b,
     c:cos*previous.c-sin*previous.d,d:sin*previous.c+cos*previous.d,
-    x:previous.x+(current.x-previous.x)*mixX,
-    y:previous.y+(current.y-previous.y)*mixY
+    x:previous.x+(targetX-previous.x)*mixX,
+    y:previous.y+(targetY-previous.y)*mixY
    };
    if(rotateMode==='chainScale'&&next&&Math.abs(mixRotate)>0){
     const boneLength=this.ir.skeleton.bones.find(b=>b.id===boneId)!.setup.length;
