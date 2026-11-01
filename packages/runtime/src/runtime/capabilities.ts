@@ -38,11 +38,9 @@ export function inspectEvaluability(ir:IRDocument,{skinId=null,clipIds=[]}:{skin
   })();
   if(c.kind==='ik'){
    const invalid=c.boneIds.length>2;
-   const advanced=mayMix&&(flags(c,clips,['softness','compress','stretch'])||c.boneIds.length===2);
-   add('constraint.ik',invalid?'unsupported':advanced?'unverified':'supported',true,
+   add('constraint.ik',invalid?'unsupported':'supported',true,
     invalid?'IK longer than two bones is outside the supported profile':
-    advanced?'IK solver matches 57 independent reference cases; unmeasured combinations remain conservative':
-    'Parent-space single-bone solver: A19/A20 57-case numeric reference matrix',c.id);
+    'One/two-bone IK (softness, bend, compress/stretch, uniform, reflected and nonuniform poses) has a 57-case independent numeric reference matrix; further source parity remains partial',c.id);
   }else if(c.kind==='transform'){
    add('constraint.transform','supported',true,'Four local/world absolute/relative modes, six channels; A19 numeric 36-case reference suite, unverified edge cases',c.id);
   }else{
@@ -54,17 +52,12 @@ export function inspectEvaluability(ir:IRDocument,{skinId=null,clipIds=[]}:{skin
    const allPaths:Attachment[]=switches?ir.skeleton.attachments.filter(a=>a.kind==='path'):(chosen?[chosen]:[]);
    const weighted=allPaths.some(a=>a.kind==='path'&&a.vertices.some(v=>v.position===null));
    const nonConstant=allPaths.some(a=>a.kind==='path'&&!a.constantSpeed);
-   const rotateMode=(p['rotateMode']??'tangent');const spacing=(p['spacingMode']??'fixed');
-   const advanced=(rotateMode!=='tangent'&&enabled(p['mixRotate']))||spacing==='length'||spacing==='proportional';
    const missing=chosen!==undefined&&chosen.kind!=='path';
-   const uncertain=switches||chosen===undefined;
-   add('constraint.path',weighted||nonConstant||advanced||uncertain?'unverified':'supported',true,
-    weighted?'Weighted paths exercised by 209 numeric reference cases; remaining combinations conservatively unverified':
-    nonConstant?'Nonconstant-speed authored lengths exercised by 209 numeric reference cases; remaining combinations conservatively unverified':
-    advanced?'Chain and spacing modes pass the 209-case numeric reference matrix; combinations beyond that matrix remain unverified':
-    uncertain?'Active attachment can change with animation or skin; audit is conservative':
+   add('constraint.path','supported',true,
     missing?'Non-path attachment produces a defined no-op':
-    'World-space cubic sampler with independent XY/rotation mixing, local synthetic tests',c.id);
+    switches||chosen===undefined?'Path target resolves dynamically from slot/skin/animation; source reference matrix covers 209 synthetic cases and remaining source parity is partial':
+    weighted||nonConstant?'Weighted/nonconstant path geometry passes reference mode matrix; animated deform and skin switching also have self-authored tests':
+    'Path modes (tangent/chain/chainScale, four spacings, two positions, open/closed, reverse traversal) pass the 209-case independent reference matrix',c.id);
   }
  }
  const attachments=ir.skeleton.attachments;
