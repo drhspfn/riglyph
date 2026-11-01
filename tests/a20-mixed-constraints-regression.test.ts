@@ -24,7 +24,7 @@ function make(kinds:readonly ('transform-pre'|'ik'|'path'|'transform-post')[]):I
  const follower=addBone(ir,'follower','tip');Object.assign(follower.setup,{x:11,y:2,rotationDeg:5,length:3});
  const target=addBone(ir,'target');Object.assign(target.setup,{x:40,y:21});
  const xTarget=addBone(ir,'xTarget');Object.assign(xTarget.setup,{x:-6,y:25,rotationDeg:-27});
- const vertices:Vertex[]=[[0,0],[18,0],[38,12],[70,0]].map(([x,y])=>({position:[x,y],influences:[]}));
+ const vertices:Vertex[]=([[0,0],[18,0],[38,12],[70,0]] as [number,number][]).map(([x,y]):Vertex=>({position:[x,y],influences:[]}));
  ir.skeleton.attachments.push({id:'track',name:'track',kind:'path',
   color:[1,1,1,1],vertices,closed:false,constantSpeed:true,lengths:[70]});
  ir.skeleton.slots[0]!.setupAttachmentId='track';
