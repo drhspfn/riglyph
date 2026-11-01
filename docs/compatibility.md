@@ -42,3 +42,33 @@ a claim that every possible third-party animation, G2 full numerical parity or
 G3 visual pixel parity has been checked. Check GitHub Actions on the final PR
 HEAD for browser, Node 22/24, Linux/Windows and React/Next.js results. No
 additional source versions are implied.
+
+## A20 code-review edge validation
+
+The PR includes focused **self-authored regression tests** beyond the 266 independent
+reference observations. In `tests/a20-review-ik-edge.test.ts`, softened-goal
+selection is checked when the target lies within the ordinary reach boundary,
+while the reference's outer unreachable fallback remains unchanged. The
+zero-X/nonzero-Y child offset is exercised with shear, negative determinants,
+nonuniform parents and partial mixes, comparing all six world-affine components
+and repeatability. The zero-X/zero-Y reference observation remains unchanged.
+
+`tests/a20-review-path-epsilon.test.ts` checks both sides of the 1e-8 chord
+threshold for positive/negative spacing, open/closed paths, mirrored and normal
+transforms, and `chain`/`chainScale` modes. These boundary tests are not
+additional Viewer-oracle observations and do not enlarge the claimed independent
+reference corpus.
+
+### What capability reporting means
+
+- `fullyEvaluable` is **only a runtime Universal IR executability result** for
+  the active skin and requested animation clips, not a certification of binary
+  import fidelity or compatibility with every Spine asset.
+- `sourceParity='NUMERIC_REFERENCE_PARTIAL'` means a relevant active runtime
+  constraint has **bounded synthetic independent numerical evidence**. It does
+  **not** mean full source-format or visual parity. A report without such a
+  verified active constraint uses `UNVERIFIED_NO_REFERENCE`.
+- `fullSourceParityVerified` is explicitly `false`; the
+  `referenceScope` is `BOUNDED_SYNTHETIC_CASES` even if
+  `fullyEvaluable=true`. An active unsupported feature remains reported in
+  `unsupported` and forces `fullyEvaluable=false`.
