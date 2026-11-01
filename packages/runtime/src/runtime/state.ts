@@ -7,6 +7,8 @@ import {timelineValue} from './curves.js';
 import {sequenceFrame} from './sequence.js';
 import type {SequencePlayback} from './sequence.js';
 import {evaluateTransformBone} from './transform-constraint.js';
+import {CubicWorldPath} from './path-geometry.js';
+import {solveOneLink,solveTwoLink} from './ik-solver.js';
 
 export type SlotState={attachmentId:string|null;light:Vec4;dark:Vec3|null;sequenceIndex:number};
 export type EvaluatedEvent={eventId:string;timeSec:number;value:unknown};
@@ -124,7 +126,7 @@ export class SkeletonInstance {
   }else if(kind==='attachment'){
    if(property!=='deform')throw new EngineError('UNSUPPORTED_TIMELINE_TYPE',`Unsupported attachment property ${property}`);
    const owner=t.targetId!;const a=this.assets.get(owner);const mesh=a?.kind==='linked_mesh'?this.assets.get(a.parentMeshId):a;
-   requireCondition(mesh?.kind==='mesh','INVALID_TIMELINE','Deform requires mesh');
+   requireCondition(mesh&&'vertices' in mesh,'INVALID_TIMELINE','Deform requires a vertex attachment');
    const expected=mesh.vertices.reduce((n,v)=>n+(v.position?2:v.influences.length*2),0);
    let array:Float32Array;
    if(Array.isArray(value)){requireCondition(value.length===expected&&value.every(v=>typeof v==='number'),'INVALID_TIMELINE','Incorrect deform length');array=new Float32Array(value);}
@@ -155,7 +157,7 @@ export class SkeletonInstance {
     if(timeline.targetKind==='attachment'&&timeline.property==='deform'){
      const owner=this.assets.get(timeline.targetId!);
      const mesh=owner?.kind==='linked_mesh'?this.assets.get(owner.parentMeshId):owner;
-     requireCondition(mesh?.kind==='mesh','INVALID_TIMELINE','Deform timeline requires a resolved mesh');
+     requireCondition(mesh&&'vertices' in mesh,'INVALID_TIMELINE','Deform timeline requires a vertex attachment');
      const floatCount=mesh.vertices.reduce((n,vertex)=>n+(vertex.position?2:vertex.influences.length*2),0);
      v=timelineValue(timeline.keys,time,floatCount);
     }else v=timelineValue(timeline.keys,time);
@@ -202,36 +204,31 @@ export class SkeletonInstance {
    if(c.boneIds.some(id=>!this.activeBones.has(id))||(c.targetBoneId&&!this.activeBones.has(c.targetBoneId)))continue;
    if(c.kind==='ik'){this.ik(c);this.refreshLocalConstraint(c.boneIds);}
    else if(c.kind==='transform')this.transformConstraint(c);
-   else{this.pathConstraint(c);this.refreshLocalConstraint(c.boneIds);}
+   else this.pathConstraint(c);
   }
  }
  private ik(c:Constraint):void{
-  const params=this.parameters.get(c.id)!;const mix=typeof params['mix']==='number'?params['mix']:1;
+  const p=this.parameters.get(c.id)!;
+  const mix=Number(p['mix']??1);
   if(mix===0||!c.boneIds.length)return;
-  // Never silently drop numerical properties that alter constrained pose.
-  // Reference-compatible soft IK/stretch has not been specified or tested.
-  requireCondition(Number(params['softness']??0)===0&&!params['compress']&&!params['stretch'],
-   'UNSUPPORTED_SEMANTIC_FEATURE',`IK ${c.id}: softness/compress/stretch requires a reference-tested solver`);
-  requireCondition(c.boneIds.length<=2,'UNSUPPORTED_SEMANTIC_FEATURE','IK solver supports one or two bones');
+  requireCondition(c.boneIds.length<=2,'INVALID_TOPOLOGY','IK supports one or two constrained bones');
+  const first=c.boneIds[0]!,spec=this.ir.skeleton.bones.find(b=>b.id===first)!;
+  const parent=spec.parentId?this.world.get(spec.parentId)!:null;
   const target=this.world.get(c.targetBoneId!)!;
-  const first=c.boneIds[0]!;const b=this.bones.get(first)!,w=this.world.get(first)!;
+  const local=this.applied.get(first)!;
   if(c.boneIds.length===1){
-   const sourceAngle=Math.atan2(w.b,w.a)*180/Math.PI;
-   const intended=Math.atan2(target.y-w.y,target.x-w.x)*180/Math.PI;
-   b.rotationDeg+=shortestAngleDelta(sourceAngle,intended)*mix;return;
+   const next=solveOneLink({parentBasis:parent,world:this.world.get(first)!,local,
+    inheritance:spec.inheritance,target:[target.x,target.y],mix,
+    compress:p['compress']===true,stretch:p['stretch']===true,uniform:p['uniform']===true});
+   this.bones.set(first,next);return;
   }
-  const childId=c.boneIds[1]!,child=this.bones.get(childId)!,w2=this.world.get(childId)!;
-  const len1=Math.hypot(w2.x-w.x,w2.y-w.y),len2=Math.abs(child.length*child.scaleX);
-  requireCondition(len1>1e-8&&len2>1e-8,'UNSUPPORTED_SEMANTIC_FEATURE','Two-bone IK needs nonzero segment lengths');
-  // General 2-link inverse kinematics in world XY. Preserve authored bend sign.
-  const dx=target.x-w.x,dy=target.y-w.y,dist=Math.hypot(dx,dy),d=Math.min(len1+len2,Math.max(Math.abs(len1-len2),dist));
-  const bend=params['bendDirection']===-1?-1:1;
-  const angle2=bend*Math.acos(Math.max(-1,Math.min(1,(d*d-len1*len1-len2*len2)/(2*len1*len2))));
-  const angle1=Math.atan2(dy,dx)-Math.atan2(len2*Math.sin(angle2),len1+len2*Math.cos(angle2));
-  const desiredFirst=angle1*180/Math.PI;
-  const delta=shortestAngleDelta(Math.atan2(w2.y-w.y,w2.x-w.x)*180/Math.PI,desiredFirst);
-  b.rotationDeg+=delta*mix;
-  child.rotationDeg+=shortestAngleDelta(child.rotationDeg,angle2*180/Math.PI)*mix;
+  const childId=c.boneIds[1]!,childSpec=this.ir.skeleton.bones.find(b=>b.id===childId)!;
+  const child=this.applied.get(childId)!;
+  const solved=solveTwoLink({parentBasis:parent,first:local,second:child,
+   firstInheritance:spec.inheritance,secondInheritance:childSpec.inheritance,
+   target:[target.x,target.y],bend:p['bendDirection']===-1?-1:1,mix,
+   softness:Number(p['softness']??0),stretch:p['stretch']===true,uniform:p['uniform']===true});
+  this.bones.set(first,solved.first);this.bones.set(childId,solved.second);
  }
  private transformConstraint(c:Constraint):void{
   const p=this.parameters.get(c.id)!;
@@ -245,46 +242,132 @@ export class SkeletonInstance {
    this.updateDescendants(new Set([id]));
   }
  }
- /** Self-authored cubic path sampler; source-compatibility with 4.1 distance modes is unverified. */
+ /** World-space path evaluation. The attachment is resolved from the active
+  * target slot at each sample, including skin and attachment timelines.
+  * Constrained matrices stay authoritative across mixed constraint chains.
+  */
  private pathConstraint(c:Constraint):void{
-  const target=this.slots.get(c.targetSlotId!);if(!target?.attachmentId)return;
-  const attachment=this.assets.get(target.attachmentId);
-  requireCondition(attachment?.kind==='path','UNSUPPORTED_SEMANTIC_FEATURE','Active path constraint requires path attachment');
-  requireCondition(attachment.vertices.every(v=>v.position!==null),'UNSUPPORTED_SEMANTIC_FEATURE','Weighted constraint paths not supported');
-  const points=attachment.vertices.map(v=>v.position!) as [number,number][];
-  requireCondition(points.length>=4,'INVALID_ATTACHMENT','Path must have cubic control vertices');
-  const p=this.parameters.get(c.id)!;
-  requireCondition((p['rotateMode']??'tangent')==='tangent'||Number(p['mixRotate']??0)===0,
-   'UNSUPPORTED_SEMANTIC_FEATURE',`Path constraint ${c.id}: rotateMode ${String(p['rotateMode'])} not implemented`);
-  requireCondition((p['spacingMode']??'fixed')!=='length'&&(p['spacingMode']??'fixed')!=='proportional'||c.boneIds.length<2,
-   'UNSUPPORTED_SEMANTIC_FEATURE',`Path constraint ${c.id}: spacingMode ${String(p['spacingMode'])} needs length-aware sampling`);
-  requireCondition(attachment.constantSpeed,
-   'UNSUPPORTED_SEMANTIC_FEATURE',`Path constraint ${c.id}: non-constant-speed parameterization not implemented`);
+  const slot=this.slots.get(c.targetSlotId!);
+  if(!slot?.attachmentId)return;
+  const attachment=this.assets.get(slot.attachmentId);
+  if(!attachment||attachment.kind!=='path')return;
   const owner=this.ir.skeleton.slots.find(s=>s.id===c.targetSlotId)!;
-  const world=this.world.get(owner.boneId)!;
-  const segments:{start:[number,number];a:[number,number];b:[number,number];end:[number,number]}[]=[];
-  for(let i=0;i+3<points.length;i+=3)segments.push({start:points[i]!,a:points[i+1]!,b:points[i+2]!,end:points[i+3]!});
-  const sample=(s:typeof segments[number],t:number):[number,number]=>{const u=1-t;return [0,1].map(i=>u*u*u*s.start[i]!+3*u*u*t*s.a[i]!+3*u*t*t*s.b[i]!+t*t*t*s.end[i]!) as [number,number];};
-  const poly:[number,number][]=[];for(const s of segments){for(let i=0;i<=40;i++)poly.push(sample(s,i/40));}
-  const lens=[0];for(let i=1;i<poly.length;i++)lens.push(lens[i-1]!+Math.hypot(poly[i]![0]-poly[i-1]![0],poly[i]![1]-poly[i-1]![1]));
-  const total=lens.at(-1)!;if(total<=1e-8)return;
-  const offset=Number(p['position']??0),spacing=Number(p['spacing']??0);
+  const points=this.vertices(attachment.vertices,owner.boneId,this.deforms.get(attachment.id));
+  const geometry=new CubicWorldPath(points,attachment.closed,attachment.constantSpeed,attachment.lengths);
+  const p=this.parameters.get(c.id)!;
+  const mixRotate=Number(p['mixRotate']??0),mixX=Number(p['mixX']??1),mixY=Number(p['mixY']??1);
+  if(mixRotate===0&&mixX===0&&mixY===0)return;
+  const spacingMode=String(p['spacingMode']??'fixed'),rotateMode=String(p['rotateMode']??'tangent');
+  const position=Number(p['position']??0)*(p['positionMode']==='percent'?geometry.total:1);
+  const authoredSpacing=Number(p['spacing']??0);
+  // Snapshot all constrained world matrices before mutating the chain.
+  // A Path constraint computes each directly; early descendant refresh would
+  // incorrectly alter the next constrained bone's mix baseline.
+  const originals=new Map(c.boneIds.map(id=>[id,{...this.world.get(id)!}]));
+  const lengths=c.boneIds.map(id=>{
+   const m=originals.get(id)!,bone=this.ir.skeleton.bones.find(b=>b.id===id)!;
+   return Math.abs(bone.setup.length)*Math.hypot(m.a,m.b);
+  });
+  const lengthSum=lengths.reduce((sum,value)=>sum+value,0);
+  const distances=[position];
   for(let i=0;i<c.boneIds.length;i++){
-   const boneId=c.boneIds[i]!,bone=this.bones.get(boneId)!;
-   const raw=(p['positionMode']==='percent'?offset*total:offset)+(p['spacingMode']==='percent'?spacing*total:spacing)*i;
-   const dist=attachment.closed?((raw%total)+total)%total:Math.max(0,Math.min(total,raw));
-   let j=1;while(j<lens.length-1&&lens[j]!<dist)j++;
-   const f=(dist-lens[j-1]!)/Math.max(1e-8,lens[j]!-lens[j-1]!);
-   const pt:[number,number]=[poly[j-1]![0]+(poly[j]![0]-poly[j-1]![0])*f,poly[j-1]![1]+(poly[j]![1]-poly[j-1]![1])*f];
-   const pos=apply(world,...pt);const parentId=this.ir.skeleton.bones.find(b=>b.id===boneId)!.parentId;
-   const desired=parentId?apply(invert(this.world.get(parentId)!),...pos):pos;
-   const mx=Number(p['mixX']??1),my=Number(p['mixY']??1);
-   bone.x+=(desired[0]-bone.x)*mx;bone.y+=(desired[1]-bone.y)*my;
-   const tangent=Math.atan2(poly[j]![1]-poly[j-1]![1],poly[j]![0]-poly[j-1]![0])*180/Math.PI;
-   const ownerAngle=Math.atan2(world.b,world.a)*180/Math.PI;
-   const current=this.world.get(boneId)!;
-   bone.rotationDeg+=shortestAngleDelta(Math.atan2(current.b,current.a)*180/Math.PI,tangent+ownerAngle+Number(p['offsetRotation']??0))*Number(p['mixRotate']??0);
+   const worldLength=lengths[i]!;
+   const setupLength=Math.abs(this.ir.skeleton.bones.find(b=>b.id===c.boneIds[i])!.setup.length);
+   const axisScale=setupLength>1e-9?worldLength/setupLength:1;
+   const interval=spacingMode==='percent'?authoredSpacing*geometry.total:
+    spacingMode==='length'?worldLength+authoredSpacing*axisScale:
+    spacingMode==='proportional'?(rotateMode==='tangent'?authoredSpacing*geometry.total:
+     lengthSum>1e-9?(lengths[i]!/lengthSum)*geometry.total*authoredSpacing:0):
+    authoredSpacing*axisScale;
+   distances.push(distances.at(-1)!+interval);
   }
+  const ownerWorld=this.world.get(owner.boneId)!;
+  const reflection=ownerWorld.a*ownerWorld.d-ownerWorld.b*ownerWorld.c<0?-1:1;
+  // Sampling all positions in traversal order preserves the path-profile
+  // cursor semantics for descending closed paths. A standalone sample()
+  // continues to provide deterministic random access to the same geometry.
+  const sampled=geometry.sampleSequence(distances);
+  for(let i=0;i<c.boneIds.length;i++){
+   const boneId=c.boneIds[i]!,previous=originals.get(boneId)!;
+   const current=sampled[i]!;
+   const next=rotateMode==='tangent'?null:sampled[i+1]!;
+   // Exactly coincident samples have no chain direction. A zero vector
+   // retains atan2(0, 0) semantics; distinct sub-epsilon samples retain
+   // the stable tangent fallback (avoiding cancellation in float64).
+   const dx=next?next.x-current.x:0,dy=next?next.y-current.y:0;
+   // A near-coincident but nonzero chord is ill-conditioned. Estimate
+   // its direction from a finite backward arc-length secant rather than
+   // subtracting two nearly equal world positions. The 0.1-unit cap
+   // bounds curvature error without depending on coordinate magnitude.
+   const stableDirection=()=>{
+    const preceding=geometry.sample(distances[i]!-Math.min(.1,geometry.total*1e-3));
+    // A negative spacing traverses the chord backwards. The stable
+    // backward secant represents the forward tangent, so reverse its sign
+    // before forming the angle; otherwise the direction flips by PI at
+    // the 1e-8 threshold as the exact chord becomes numerically resolvable.
+    const sign=distances[i+1]!<distances[i]!?-1:1;
+    return Math.atan2(sign*(current.y-preceding.y),sign*(current.x-preceding.x));
+   };
+   const angle=next?(dx===0&&dy===0?0:
+    Math.hypot(dx,dy)>1e-8?Math.atan2(dy,dx):stableDirection()):current.angle;
+   const offset=Number(p['offsetRotation']??0)*Math.PI/180*reflection;
+   const wanted=angle+offset;
+   const existing=Math.atan2(previous.b,previous.a);
+   const delta=Math.atan2(Math.sin(wanted-existing),Math.cos(wanted-existing))*mixRotate;
+   const cos=Math.cos(delta),sin=Math.sin(delta);
+   // With zero offset, chain mode joins each bone to its predecessor's
+   // evaluated tip. ChainScale and tangent retain independent path origins.
+   // Do not snap when rotation mixing is disabled: translation mixes remain
+   // independent in that case.
+   let targetX=current.x,targetY=current.y;
+   if(rotateMode==='chain'&&Number(p['offsetRotation']??0)===0&&mixRotate!==0&&i>0){
+    const predecessorId=c.boneIds[i-1]!;
+    const predecessor=this.world.get(predecessorId)!;
+    const predecessorLength=this.ir.skeleton.bones.find(b=>b.id===predecessorId)!.setup.length;
+    targetX=predecessor.x+predecessor.a*predecessorLength;
+    targetY=predecessor.y+predecessor.b*predecessorLength;
+   }
+   const result:Affine={
+    a:cos*previous.a-sin*previous.b,b:sin*previous.a+cos*previous.b,
+    c:cos*previous.c-sin*previous.d,d:sin*previous.c+cos*previous.d,
+    x:previous.x+(targetX-previous.x)*mixX,
+    y:previous.y+(targetY-previous.y)*mixY
+   };
+   if(rotateMode==='chainScale'&&next&&Math.abs(mixRotate)>0){
+    const boneLength=this.ir.skeleton.bones.find(b=>b.id===boneId)!.setup.length;
+    const oldLength=Math.abs(boneLength)*Math.hypot(previous.a,previous.b);
+    if(oldLength>1e-9){
+     const desired=Math.hypot(next.x-current.x,next.y-current.y);
+     const scale=1+(desired/oldLength-1)*mixRotate;
+     result.a*=scale;result.b*=scale;
+    }
+   }
+   this.world.set(boneId,result);
+   // Reconstruct an applied pose for subsequent local transform constraints.
+   // The world matrix above remains the source of truth for descendants.
+   const spec=this.ir.skeleton.bones.find(b=>b.id===boneId)!;
+   const parent=spec.parentId?this.world.get(spec.parentId)!:null;
+   let local:Affine=result;
+   if(parent){
+    const det=parent.a*parent.d-parent.b*parent.c;
+    if(Math.abs(det)>1e-12){
+     const invParent=invert(parent);
+     const [x,y]=apply(invParent,result.x,result.y);
+     local={a:invParent.a*result.a+invParent.c*result.b,b:invParent.b*result.a+invParent.d*result.b,
+      c:invParent.a*result.c+invParent.c*result.d,d:invParent.b*result.c+invParent.d*result.d,x,y};
+    }
+   }
+   const old=this.applied.get(boneId)!;
+   const sxSign=old.scaleX<0?-1:1,sySign=old.scaleY<0?-1:1;
+   const sx=Math.hypot(local.a,local.b)*sxSign;
+   const sy=Math.hypot(local.c,local.d)*sySign;
+   const rot=Math.atan2(local.b*sxSign,local.a*sxSign)*180/Math.PI-old.shearXDeg;
+   const shearY=Math.atan2(local.d*sySign,local.c*sySign)*180/Math.PI-90-rot;
+   const pose:Transform={...old,x:local.x,y:local.y,
+    rotationDeg:rot,scaleX:sx,scaleY:sy,shearYDeg:((shearY+540)%360)-180};
+   this.applied.set(boneId,pose);this.bones.set(boneId,copyTransform(pose));
+  }
+  this.updateDescendants(new Set(c.boneIds));
  }
  /** Non-mutating snapshot of local vertices, including influence-local deformation. */
  vertices(vertices:readonly Vertex[],ownerBoneId:string,deform?:Float32Array):Float32Array{

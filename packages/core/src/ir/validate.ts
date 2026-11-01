@@ -155,7 +155,7 @@ function semanticIssues(doc:IRDocument):ValidationIssue[]{
   if(t.property==='deform'){
    if(t.targetKind!=='attachment'||!t.targetId)fail(at,'Deform requires attachment target');
    else {const a=byAttachment.get(t.targetId);const mesh=a?.kind==='linked_mesh'?byAttachment.get(a.parentMeshId):a;
-    if(!mesh||mesh.kind!=='mesh')fail(at,'Deform owner must be mesh');
+    if(!mesh||!('vertices' in mesh))fail(at,'Deform owner must be a vertex attachment');
     else {const n=mesh.vertices.reduce((sum,v)=>sum+(v.position?2:2*v.influences.length),0);const basis=mesh.vertices.some(v=>v.position===null)?'influence_delta':'vertex_delta';if(t.deformBasis!==basis)fail(at,'Deform basis mismatch');for(const key of t.keys){
      const v=key.value;
      if(Array.isArray(v)){if(!finiteNumbers(v,n))fail(at,`Deform length must be ${n} and all values finite`);}
