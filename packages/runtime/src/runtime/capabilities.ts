@@ -1,6 +1,7 @@
-/** Version-neutral runtime feature audit. 'supported' means implemented;
- * numerical source parity is reported separately and remains partial.
- * The active skin and requested animation clips determine constraint visibility.
+/** Version-neutral runtime feature audit. 'fullyEvaluable' only means the
+ * active Universal IR can be executed without known unsupported features.
+ * It does NOT mean full Spine version compatibility or external visual parity.
+ * Source-reference evidence is limited to the declared synthetic cases.
  */
 import type {IRDocument,Attachment} from '@riglyph/core';
 import {EngineError} from '@riglyph/core';
@@ -8,14 +9,14 @@ import {EngineError} from '@riglyph/core';
 export type CapabilityStatus='supported'|'unsupported'|'unverified';
 export type ReferenceStatus='UNVERIFIED_NO_REFERENCE'|'NUMERIC_REFERENCE_PARTIAL';
 export type FeatureCapability={feature:string;status:CapabilityStatus;referenceStatus:ReferenceStatus;evidence:'SELF_AUTHORED_TESTS'|'RUNTIME_GUARD'|'NOT_REFERENCE_TESTED'|'INDEPENDENT_NUMERIC_CASES';active:boolean;reason:string;constraintId?:string};
-export type EvaluabilityReport={format:'riglyph-capability-report-v1';source:{family:string;version:string;adapter:string};skinId:string|null;clipIds:string[];fullyEvaluable:boolean;sourceParity:ReferenceStatus;features:FeatureCapability[];unsupported:FeatureCapability[]};
+export type EvaluabilityReport={format:'riglyph-capability-report-v1';source:{family:string;version:string;adapter:string};skinId:string|null;clipIds:string[];fullyEvaluable:boolean;sourceParity:ReferenceStatus;fullSourceParityVerified:false;referenceScope:'BOUNDED_SYNTHETIC_CASES';features:FeatureCapability[];unsupported:FeatureCapability[]};
 export function inspectEvaluability(ir:IRDocument,{skinId=null,clipIds=[]}:{skinId?:string|null;clipIds?:readonly string[]}={}):EvaluabilityReport{
  if(skinId!==null&&!ir.skeleton.skins.some(s=>s.id===skinId))throw new EngineError('INVALID_SKIN','Capability audit skin does not exist');
  const clips=clipIds.map(id=>{const c=ir.skeleton.animations.find(a=>a.id===id);if(!c)throw new EngineError('ANIMATION_NOT_FOUND','Capability audit clip does not exist');return c;});
  const skin=ir.skeleton.skins.find(s=>s.id===skinId)??ir.skeleton.skins.find(s=>s.isDefault);
  const features:FeatureCapability[]=[];
  const add=(feature:string,status:CapabilityStatus,active:boolean,reason:string,constraintId?:string)=>{
-  const hasNumericReference=['constraint.ik','constraint.path','constraint.transform'].includes(feature);
+  const hasNumericReference=active&&status==='supported'&&['constraint.ik','constraint.path','constraint.transform'].includes(feature);
   features.push({feature,status,active,reason,
    referenceStatus:hasNumericReference?'NUMERIC_REFERENCE_PARTIAL':'UNVERIFIED_NO_REFERENCE',
    evidence:status==='unsupported'?'RUNTIME_GUARD':hasNumericReference?'INDEPENDENT_NUMERIC_CASES':
@@ -61,5 +62,5 @@ export function inspectEvaluability(ir:IRDocument,{skinId=null,clipIds=[]}:{skin
  add('animation.sequences','supported',attachments.some(a=>'sequence'in a&&a.sequence!==null),'Local sequence tests; missing pages produce typed runtime error');
  add('animation.events','supported',clips.some(a=>a.timelines.some(t=>t.targetKind==='event')),'Local event ordering tests only');
  add('animation.mixing','supported',clips.length>1,'Local multi-track evaluation tests only');
- return {format:'riglyph-capability-report-v1',source:{family:ir.source.family,version:ir.source.version,adapter:ir.source.adapter},skinId,clipIds:[...clipIds],fullyEvaluable:features.every(f=>!f.active||f.status==='supported'),sourceParity:'NUMERIC_REFERENCE_PARTIAL',features,unsupported:features.filter(f=>f.active&&f.status!=='supported')};
+ return {format:'riglyph-capability-report-v1',source:{family:ir.source.family,version:ir.source.version,adapter:ir.source.adapter},skinId,clipIds:[...clipIds],fullyEvaluable:features.every(f=>!f.active||f.status==='supported'),sourceParity:features.some(f=>f.referenceStatus==='NUMERIC_REFERENCE_PARTIAL')?'NUMERIC_REFERENCE_PARTIAL':'UNVERIFIED_NO_REFERENCE',fullSourceParityVerified:false,referenceScope:'BOUNDED_SYNTHETIC_CASES',features,unsupported:features.filter(f=>f.active&&f.status!=='supported')};
 }
