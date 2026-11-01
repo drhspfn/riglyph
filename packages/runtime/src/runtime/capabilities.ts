@@ -50,22 +50,9 @@ export function inspectEvaluability(ir:IRDocument,{skinId=null,clipIds=[]}:{skin
    const nonConstant=allPaths.some(a=>a.kind==='path'&&!a.constantSpeed);
    const rotateMode=(p['rotateMode']??'tangent');const spacing=(p['spacingMode']??'fixed');
    const advanced=(rotateMode!=='tangent'&&enabled(p['mixRotate']))||spacing==='length'||spacing==='proportional';
-   // The A20 independent reference matrix includes a known, unresolved numerical
-   // mismatch for negative fixed spacing along a reflected closed path. Do not
-   // advertise a full 'supported' evaluation for that profile. Animated
-   // sign changes are conservatively included even if setup is positive.
-   const mirroredSetup=ir.skeleton.bones.some(b=>b.setup.scaleX*b.setup.scaleY<0);
-   const animatedReflection=clips.some(clip=>clip.timelines.some(t=>t.targetKind==='bone'&&
-    (t.property==='scale'||t.property==='scaleX'||t.property==='scaleY')&&
-    t.keys.some(k=>typeof k.value==='number'?k.value<0:
-     Array.isArray(k.value)&&k.value.some(v=>typeof v==='number'&&v<0))));
-   const negativeSpacing=typeof p['spacing']==='number'&&p['spacing']<0||
-    valueAtAnyKey(c,clips,'spacing',v=>typeof v==='number'&&v<0);
-   const reflectedNegative=rotateMode==='tangent'&&spacing==='fixed'&&negativeSpacing&&(mirroredSetup||animatedReflection);
    const missing=chosen!==undefined&&chosen.kind!=='path';
    const uncertain=switches||chosen===undefined;
-   add('constraint.path',weighted||nonConstant||advanced||uncertain||reflectedNegative?'unverified':'supported',true,
-    reflectedNegative?'Independent A20-PATH-06 reference mismatch: reflected hierarchy with negative fixed spacing is not numerically verified':
+   add('constraint.path',weighted||nonConstant||advanced||uncertain?'unverified':'supported',true,
     weighted?'Weighted path world vertices are evaluated; numerical parity not established':
     nonConstant?'Authored curve lengths are evaluated; numerical parity not established':
     advanced?'Chain orientation/spacing are implemented but source numerical parity is not established':
