@@ -32,7 +32,7 @@ export function solveTwoLink(input:TwoLinkInput):{first:Transform;second:Transfo
   const worldSoft=softness*Math.hypot(parent.a,parent.b);
   const excess=distance-alignedReach+worldSoft;
   if(worldSoft>1e-9&&excess>0){
-   const reduction=excess<worldSoft?excess*excess/(2*worldSoft):
+   const reduction=excess<worldSoft?excess*excess/(2*worldSoft+excess/3):
     Math.min(distance,excess-worldSoft/2);
    const amount=Math.max(0,distance-reduction)/Math.max(distance,1e-9);
    targetGoal=[firstWorld.x+targetDx*amount,firstWorld.y+targetDy*amount];
