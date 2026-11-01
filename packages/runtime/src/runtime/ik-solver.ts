@@ -50,3 +50,40 @@ export function solveTwoLink(input:TwoLinkInput):{first:Transform;second:Transfo
  return{first:{...first,rotationDeg:first.rotationDeg+shortestAngleDelta(first.rotationDeg,best.r1)*mix},
   second:{...second,rotationDeg:second.rotationDeg+shortestAngleDelta(second.rotationDeg,best.r2)*mix},residual:best.err};
 }
+
+
+// Single-bone IK is solved in parent space: aiming a world-space angle is
+// incorrect when the parent has nonuniform scale or reflection.
+export type OneLinkInput={parentBasis:Affine|null;world:Affine;local:Transform;
+ inheritance:Inheritance;target:[number,number];mix:number;
+ compress:boolean;stretch:boolean;uniform:boolean};
+export function solveOneLink(input:OneLinkInput):Transform{
+ const {world,local,target,mix}=input;
+ if(mix===0)return {...local};
+ const parent=input.parentBasis??identity;
+ const dx=target[0]-world.x,dy=target[1]-world.y;
+ const det=parent.a*parent.d-parent.b*parent.c;
+ let x=dx,y=dy;
+ if(Math.abs(det)>1e-12&&input.inheritance==='normal'){
+  x=(parent.d*dx-parent.c*dy)/det;
+  y=(-parent.b*dx+parent.a*dy)/det;
+ }
+ let desired=Math.atan2(y,x)/RAD;
+ if(local.scaleX<0)desired+=180;
+ const source=local.rotationDeg+local.shearXDeg;
+ const out:Transform={...local,rotationDeg:local.rotationDeg+shortestAngleDelta(source,desired)*mix};
+ if((input.compress||input.stretch)&&Math.abs(local.length)>1e-10){
+  const updated=inheritTransform(parent,out,input.inheritance);
+  const currentLength=Math.abs(local.length)*Math.hypot(updated.a,updated.b);
+  if(currentLength>1e-10){
+   const targetLength=Math.hypot(dx,dy);
+   const factor=targetLength/currentLength;
+   if(factor<1&&input.compress||factor>1&&input.stretch){
+    const adjusted=1+(factor-1)*mix;
+    out.scaleX*=adjusted;
+    if(input.uniform)out.scaleY*=adjusted;
+   }
+  }
+ }
+ return out;
+}
