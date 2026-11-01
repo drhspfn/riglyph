@@ -124,7 +124,7 @@ export class SkeletonInstance {
   }else if(kind==='attachment'){
    if(property!=='deform')throw new EngineError('UNSUPPORTED_TIMELINE_TYPE',`Unsupported attachment property ${property}`);
    const owner=t.targetId!;const a=this.assets.get(owner);const mesh=a?.kind==='linked_mesh'?this.assets.get(a.parentMeshId):a;
-   requireCondition(mesh?.kind==='mesh','INVALID_TIMELINE','Deform requires mesh');
+   requireCondition(mesh&&'vertices' in mesh,'INVALID_TIMELINE','Deform requires a vertex attachment');
    const expected=mesh.vertices.reduce((n,v)=>n+(v.position?2:v.influences.length*2),0);
    let array:Float32Array;
    if(Array.isArray(value)){requireCondition(value.length===expected&&value.every(v=>typeof v==='number'),'INVALID_TIMELINE','Incorrect deform length');array=new Float32Array(value);}
@@ -155,7 +155,7 @@ export class SkeletonInstance {
     if(timeline.targetKind==='attachment'&&timeline.property==='deform'){
      const owner=this.assets.get(timeline.targetId!);
      const mesh=owner?.kind==='linked_mesh'?this.assets.get(owner.parentMeshId):owner;
-     requireCondition(mesh?.kind==='mesh','INVALID_TIMELINE','Deform timeline requires a resolved mesh');
+     requireCondition(mesh&&'vertices' in mesh,'INVALID_TIMELINE','Deform timeline requires a vertex attachment');
      const floatCount=mesh.vertices.reduce((n,vertex)=>n+(vertex.position?2:vertex.influences.length*2),0);
      v=timelineValue(timeline.keys,time,floatCount);
     }else v=timelineValue(timeline.keys,time);

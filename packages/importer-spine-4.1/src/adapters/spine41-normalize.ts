@@ -185,9 +185,9 @@ function normalizeAnimation(wa:WireAnimation,w:Spine41Wire,skinLookup:Map<string
    const owner=attachments.find(a=>a.id===id)!;
    if(t.property==='deform'){
     const mesh=owner.kind==='linked_mesh'?attachments.find(a=>a.id===owner.parentMeshId):owner;
-    assert(mesh?.kind==='mesh',`Deform ${id} does not refer to a mesh`);
-    const basis=(mesh as MeshAttachment).vertices.some(v=>v.position===null)?'influence_delta':'vertex_delta';
-    const expected=(mesh as MeshAttachment).vertices.reduce((sum,v)=>sum+(v.position!==null?2:v.influences.length*2),0);
+    assert(mesh&&'vertices' in mesh,`Deform ${id} does not refer to a vertex attachment`);
+    const basis=(mesh as Extract<Attachment,{vertices:unknown}>).vertices.some(v=>v.position===null)?'influence_delta':'vertex_delta';
+    const expected=(mesh as Extract<Attachment,{vertices:unknown}>).vertices.reduce((sum,v)=>sum+(v.position!==null?2:v.influences.length*2),0);
     const expanded=t.frames.map((f,index)=>{
      const sparse=f.value as {offset:number;values:number[]};
      requireCondition(Number.isSafeInteger(sparse.offset)&&sparse.offset>=0&&sparse.offset+sparse.values.length<=expected,'INVALID_TIMELINE',`Deform sparse range exceeds ${expected} floats`);
