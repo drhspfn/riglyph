@@ -260,23 +260,30 @@ export class SkeletonInstance {
   const spacingMode=String(p['spacingMode']??'fixed'),rotateMode=String(p['rotateMode']??'tangent');
   const position=Number(p['position']??0)*(p['positionMode']==='percent'?geometry.total:1);
   const authoredSpacing=Number(p['spacing']??0);
+  // Snapshot all constrained world matrices before mutating the chain.
+  // A Path constraint computes each directly; early descendant refresh would
+  // incorrectly alter the next constrained bone's mix baseline.
+  const originals=new Map(c.boneIds.map(id=>[id,{...this.world.get(id)!}]));
   const lengths=c.boneIds.map(id=>{
-   const m=this.world.get(id)!,bone=this.ir.skeleton.bones.find(b=>b.id===id)!;
+   const m=originals.get(id)!,bone=this.ir.skeleton.bones.find(b=>b.id===id)!;
    return Math.abs(bone.setup.length)*Math.hypot(m.a,m.b);
   });
   const lengthSum=lengths.reduce((sum,value)=>sum+value,0);
   const distances=[position];
   for(let i=0;i<c.boneIds.length;i++){
+   const worldLength=lengths[i]!;
+   const setupLength=Math.abs(this.ir.skeleton.bones.find(b=>b.id===c.boneIds[i])!.setup.length);
+   const axisScale=setupLength>1e-9?worldLength/setupLength:1;
    const interval=spacingMode==='percent'?authoredSpacing*geometry.total:
-    spacingMode==='length'?lengths[i]!+authoredSpacing:
+    spacingMode==='length'?worldLength+authoredSpacing*axisScale:
     spacingMode==='proportional'?lengthSum>1e-9?(lengths[i]!/lengthSum)*geometry.total*authoredSpacing:0:
-    authoredSpacing;
+    authoredSpacing*axisScale;
    distances.push(distances.at(-1)!+interval);
   }
   const ownerWorld=this.world.get(owner.boneId)!;
   const reflection=ownerWorld.a*ownerWorld.d-ownerWorld.b*ownerWorld.c<0?-1:1;
   for(let i=0;i<c.boneIds.length;i++){
-   const boneId=c.boneIds[i]!,previous=this.world.get(boneId)!;
+   const boneId=c.boneIds[i]!,previous=originals.get(boneId)!;
    const current=geometry.sample(distances[i]!);
    const next=rotateMode==='tangent'?null:geometry.sample(distances[i+1]!);
    const angle=next&&Math.hypot(next.x-current.x,next.y-current.y)>1e-8?
@@ -325,8 +332,8 @@ export class SkeletonInstance {
    const pose:Transform={...old,x:local.x,y:local.y,
     rotationDeg:rot,scaleX:sx,scaleY:sy,shearYDeg:((shearY+540)%360)-180};
    this.applied.set(boneId,pose);this.bones.set(boneId,copyTransform(pose));
-   this.updateDescendants(new Set([boneId]));
   }
+  this.updateDescendants(new Set(c.boneIds));
  }
  /** Non-mutating snapshot of local vertices, including influence-local deformation. */
  vertices(vertices:readonly Vertex[],ownerBoneId:string,deform?:Float32Array):Float32Array{
