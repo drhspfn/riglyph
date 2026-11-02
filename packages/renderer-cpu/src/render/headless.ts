@@ -19,7 +19,7 @@ export type CameraSettings={
  padding?:number;scale?:number;offsetX?:number;offsetY?:number;
  x?:number;y?:number;worldWidth?:number;
 };
-export type RenderQuality={sampling?:TextureSampling;supersampling?:1|2|4};
+export type RenderQuality={sampling?:TextureSampling;supersampling?:1|2|4;pngCompression?:number};
 export type RenderBackground={mode:'transparent'|'solid';color?:string};
 export type TimelineAction={atSec:number;track:number;clipId:string;loop?:boolean;mixDurationSec?:number};
 export type HeadlessOptions={
@@ -50,7 +50,8 @@ export function countScheduledFrames(startSec:number,endSec:number,fps:number,in
  const value=(endSec-startSec)*fps;
  budget(Number.isFinite(value)&&value<Number.MAX_SAFE_INTEGER,'Frame count overflow');
  // Half-open by default: samples at start+i/fps strictly before end.
- const count=includeEnd?Math.floor(value+1e-9)+1:Math.ceil(value-1e-9);
+ const baseCount=Math.ceil(value-1e-9);
+ const count=includeEnd?baseCount+1:baseCount;
  budget(Number.isSafeInteger(count)&&count>0&&count<=maxFrames,'Frame budget exceeded or empty interval');
  return count;
 }
@@ -94,6 +95,8 @@ export class HeadlessRenderEngine{
   const ss=options.quality?.supersampling??1;
   requireCondition(ss===1||ss===2||ss===4,'INVALID_HEADER','Supersampling must be 1, 2 or 4');
   requireCondition(['nearest','linear'].includes(options.quality?.sampling??'nearest'),'INVALID_HEADER','Invalid sampling mode');
+  requireCondition(options.quality?.pngCompression===undefined||Number.isInteger(options.quality.pngCompression)&&
+   options.quality.pngCompression>=0&&options.quality.pngCompression<=9,'INVALID_HEADER','Invalid PNG compression');
   budget(width*height*ss*ss<=8_388_608,'CPU renderer surface exceeds 8,388,608 pixels after supersampling');
   budget(width*height*ss*ss*24<=(options.maxBytes??256*1024*1024),'Render memory budget exceeded');
   budget(Number.isSafeInteger(this.maxFrames)&&this.maxFrames>0,'Invalid frame budget');
@@ -183,20 +186,21 @@ export class HeadlessRenderEngine{
   }
   const count=countScheduledFrames(args.startSec,end,fps,args.includeEnd??false,this.maxFrames);
   const check=()=>{if(args.signal?.aborted)throw new EngineError('OUTPUT_COMMIT_FAILED','Rendering cancelled');};
+  const timestamp=(index:number)=>args.includeEnd&&index===count-1?end:args.startSec+index/fps;
   let stable:Viewport|undefined;
   const fit=this.camera.fit??'animation';
   if((this.camera.mode??'fit-scene').startsWith('fit-')&&fit!=='frame'){
    let envelope:RenderBounds|null=null;
    const n=fit==='start'?1:count;
    for(let i=0;i<n;i++){
-    check();const pose=this.pose({...args,timeSec:args.startSec+i/fps});
+    check();const pose=this.pose({...args,timeSec:timestamp(i)});
     envelope=joinBounds(envelope,this.bounds(pose.packets));
-    args.onProgress?.({phase:'prepass',frame:i+1,totalFrames:n,timeSec:args.startSec+i/fps});
+    args.onProgress?.({phase:'prepass',frame:i+1,totalFrames:n,timeSec:timestamp(i)});
    }
    stable=fitRenderBounds(envelope,this.width,this.height,this.camera);
   }
   for(let i=0;i<count;i++){
-   check();const timeSec=args.startSec+i/fps;
+   check();const timeSec=timestamp(i);
    const frame=await this.renderFrame({...args,timeSec,...(stable?{cameraViewport:stable}:{})});
    check();await args.onFrame(frame,i,count);
    args.onProgress?.({phase:'rendering',frame:i+1,totalFrames:count,timeSec});
