@@ -50,21 +50,25 @@ jobs:
       - name: Native bridge and JS pixel parity
         env:
           RIGLYPH_NATIVE_BIN: native/target/release/${{ matrix.exe }}
-        run: node --test dist/tests/native-*.test.js
-      - name: C/Python ctypes consumer smoke
-        shell: bash
+        run: node --test dist/tests/native-*.spec.js
+      - name: Python ctypes renders RGBA through the C ABI
         env:
           RIGLYPH_NATIVE_LIB: native/target/release/${{ matrix.lib }}
-        run: |
-          python examples/native-renderer/ctypes-render.py
-          python examples/native-renderer/c-consumer.py
+        run: python examples/native-renderer/ctypes-render.py
+      - name: C consumer compiles and verifies RGBA
+        if: runner.os != 'Windows'
+        env:
+          RIGLYPH_NATIVE_LIB: native/target/release/${{ matrix.lib }}
+        run: python examples/native-renderer/c-consumer.py
       - name: Bundle library, binary, header, license, version, hashes
         run: node scripts/native-package.mjs ${{ matrix.platform }} native/target/release/${{ matrix.exe }} native/target/release/${{ matrix.lib }}
       - name: Native package artifact
         uses: actions/upload-artifact@v4
         with:
           name: riglyph-native-${{ matrix.platform }}
-          path: native/dist/${{ matrix.platform }}/
+          path: |
+            native/dist/${{ matrix.platform }}/
+            native/dist/riglyph-native-v0.16.1-${{ matrix.platform }}.*
           if-no-files-found: error
   publish-release:
     if: github.event_name == 'release' && github.event.action == 'published'
@@ -85,5 +89,10 @@ jobs:
         run: |
           test "$TAG" = "v0.16.1"
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY"
-          echo "Native CI passed all supported platforms; archives staged by a separate packaging step."
-          # Never overwrite previously uploaded assets or publish unrelated npm packages.
+          shopt -s globstar nullglob
+          archives=(release-assets/**/riglyph-native-v0.16.1-*.tar.gz release-assets/**/riglyph-native-v0.16.1-*.zip)
+          checksums=(release-assets/**/riglyph-native-v0.16.1-*.sha256)
+          test "${#archives[@]}" -eq 3
+          test "${#checksums[@]}" -eq 3
+          # gh release upload without --clobber refuses duplicates; no npm publication.
+          gh release upload "$TAG" "${archives[@]}" "${checksums[@]}" --repo "$GITHUB_REPOSITORY"
