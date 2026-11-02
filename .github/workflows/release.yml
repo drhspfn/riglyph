@@ -25,7 +25,7 @@ jobs:
         with:
           script: |
             const tag = context.payload.release?.tag_name;
-            if (!/^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(tag ?? ''))
+            if (!/^v?(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(tag ?? ''))
               return core.setFailed('Release tag must be a valid vSemVer tag');
             const {owner,repo} = context.repo;
             const ref = await github.rest.git.getRef({owner,repo,ref:'tags/'+tag});
@@ -62,7 +62,7 @@ jobs:
           node --input-type=module -e '
             import fs from "node:fs";
             const root=JSON.parse(fs.readFileSync("package.json"));
-            if(process.env.RELEASE_TAG!==`v${root.version}`)throw Error("Tag must equal root package version");
+            if(![root.version,`v${root.version}`].includes(process.env.RELEASE_TAG))throw Error("Tag must equal root package version, optionally prefixed by v");
             for(const name of ["core","importer-sdk","runtime","renderer-webgl2","renderer-cpu","importer-spine-4.1","player-web","cli"]){
               const pkg=JSON.parse(fs.readFileSync(`packages/${name}/package.json`));
               if(pkg.version!==root.version)throw Error(`Version mismatch: ${name}`);
