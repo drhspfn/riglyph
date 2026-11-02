@@ -7,6 +7,8 @@ import {resolve,dirname,join,relative,isAbsolute,basename} from 'node:path';
 import {EngineError,requireCondition,deserializeIR} from '@riglyph/core';
 import type {IRDocument} from '@riglyph/core';
 import {HeadlessRenderEngine} from '@riglyph/renderer-cpu';
+import {createNativeRenderer,nativeBinaryPath} from '@riglyph/renderer-native';
+import type {NativeRenderer} from '@riglyph/renderer-native';
 import type {CameraSettings,RenderQuality,TimelineAction,RenderBackground} from '@riglyph/renderer-cpu';
 import {decodePNG,encodePNG} from './png.js';
 import {commitConvertedDirectory} from './transaction.js';
@@ -17,7 +19,8 @@ export type RenderCliConfig={
  images?:string;clip?:string;skin?:string;start?:number;end?:number;fps?:number;
  width?:number;height?:number;format?:'png-sequence'|VideoFormat;out?:string;outDir?:string;
  background?:string;alpha?:boolean;sampling?:'nearest'|'linear';supersampling?:1|2|4;
- pngCompression?:number;camera?:CameraSettings;quality?:RenderQuality;
+ pngCompression?:number;backend?:'js'|'native-cpu'|'auto';nativeThreads?:number;nativePath?:string;
+ camera?:CameraSettings;quality?:RenderQuality;
  cameraFit?:'start'|'animation'|'frame';cameraScale?:number;cameraPadding?:number;
  cameraX?:number;cameraY?:number;cameraTarget?:string;cameraSlot?:string;
  crf?:number;preset?:string;bitrate?:string;ffmpegPath?:string;ffprobePath?:string;ffmpegTimeoutMs?:number;
@@ -30,6 +33,7 @@ const properties:Record<string,Key>={
  '--images':'images','--clip':'clip','--skin':'skin','--start':'start','--end':'end','--fps':'fps',
  '--width':'width','--height':'height','--format':'format','--out':'out','--out-dir':'outDir',
  '--background':'background','--sampling':'sampling','--supersampling':'supersampling',
+ '--backend':'backend','--native-threads':'nativeThreads','--native-path':'nativePath',
  '--png-compression':'pngCompression','--camera':'camera','--camera-fit':'cameraFit',
  '--camera-scale':'cameraScale','--camera-padding':'cameraPadding','--camera-x':'cameraX',
  '--camera-y':'cameraY','--camera-target':'cameraTarget','--camera-slot':'cameraSlot',
@@ -38,7 +42,7 @@ const properties:Record<string,Key>={
  '--loop-count':'loopCount','--max-frames':'maxFrames','--max-bytes':'maxBytes',
  '--prefix':'prefix','--pad':'pad'};
 const numeric=new Set<Key>(['start','end','fps','width','height','supersampling','pngCompression','crf',
- 'cameraScale','cameraPadding','cameraX','cameraY','playbackSpeed','loopCount','maxFrames','maxBytes','pad','ffmpegTimeoutMs']);
+ 'cameraScale','cameraPadding','cameraX','cameraY','playbackSpeed','loopCount','maxFrames','maxBytes','pad','ffmpegTimeoutMs','nativeThreads']);
 const bools:Record<string,Key>={'--overwrite':'overwrite','--alpha':'alpha','--loop':'loop','--include-end':'includeEnd'};
 function setKey(o:Record<string,unknown>,key:Key,value:unknown):void{o[key]=value;}
 export async function parseRenderOptions(argv:readonly string[]):Promise<RenderCliConfig>{
@@ -88,6 +92,7 @@ export const renderHelp=`render <ir.json> [options] — CPU image sequence or FF
  --out-dir <dir> (PNG) OR --out <file> (video)
  --background "#00FF00" --alpha (WebM) --sampling nearest|linear
  --supersampling 1|2|4 --png-compression 0..9
+ --backend js|native-cpu|auto --native-threads 1..16 --native-path <executable>
  --camera fit-scene|fit-selection|fixed|follow --camera-fit start|frame|animation
  --camera-padding <number> --camera-scale <number> --camera-x <number> --camera-y <number>
  --camera-target <bone> --camera-slot <slot> --crf <n> --preset <name> --bitrate <rate>
@@ -161,7 +166,22 @@ export async function runRenderCli(file:string,argv:readonly string[]):Promise<v
  const transparent=format==='mp4'?false:o.alpha??(!o.background);
  const background:RenderBackground=transparent?{mode:'transparent'}:{mode:'solid',color:o.background??'#000000'};
  const root=o.images??dirname(file),pages=await texturesFor(ir,root);
+ const selection=o.backend??'js';
+ requireCondition(['js','native-cpu','auto'].includes(selection),'INVALID_HEADER','Unknown raster backend');
+ let native:NativeRenderer|undefined;
+ if(selection!=='js'){
+  try{
+   // Native is never silently required. Explicit selection reports any
+   // binary/ABI/handshake error; auto only selects an available compatible binary.
+   const binary=nativeBinaryPath(o.nativePath);
+   native=await createNativeRenderer({binaryPath:binary,threads:o.nativeThreads??1});
+  }catch(error){
+   if(selection==='native-cpu')throw error;
+   process.stderr.write(`Native acceleration unavailable; using JS rasterizer: ${String(error)}\n`);
+  }
+ }
  const engine=new HeadlessRenderEngine({ir,textures:pages,width,height,fps,camera,background,quality,
+  ...(native?{rasterBackend:native}:{}),
   maxFrames:o.maxFrames??200000,maxBytes:o.maxBytes??256*1024*1024});
  const signal=new AbortController();
  const abort=()=>signal.abort();
@@ -220,5 +240,8 @@ export async function runRenderCli(file:string,argv:readonly string[]):Promise<v
    process.stdout.write(JSON.stringify({output:resolve(o.out!),format,frameCount:resultFrameCount,probe:output})+'\n');
   }
  }catch(error){notify({event:'render-progress',phase:'failure',message:error instanceof Error?error.message:String(error)});throw error;}
- finally{process.removeListener('SIGINT',abort);process.removeListener('SIGTERM',abort);}
+ finally{
+  process.removeListener('SIGINT',abort);process.removeListener('SIGTERM',abort);
+  if(native)await native.dispose();
+ }
 }
