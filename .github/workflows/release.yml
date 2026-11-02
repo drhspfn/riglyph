@@ -51,6 +51,7 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+          registry-url: 'https://registry.npmjs.org'
       - name: Install npm with Trusted Publishing support
         run: npm install --global npm@^11.5.1
       - run: node --version && npm --version
@@ -83,8 +84,28 @@ jobs:
             release-packages/*.tgz
             release-packages/manifest.json
             release-artifacts/*
-      - name: Publish via npm Trusted Publishing / OIDC
+      - name: Validate selected npm authentication method
+        env:
+          NPM_PUBLISH_MODE: ${{ vars.NPM_PUBLISH_MODE }}
+          HAS_NPM_TOKEN: ${{ secrets.NPM_TOKEN != '' }}
+        run: |
+          case "$NPM_PUBLISH_MODE" in
+            oidc) echo 'Using npm Trusted Publishing (OIDC)' ;;
+            token)
+              if [ "$HAS_NPM_TOKEN" != 'true' ]; then
+                echo 'NPM_TOKEN secret is required for token mode' >&2
+                exit 1
+              fi
+              echo 'Using npm granular access token'
+              ;;
+            *) echo 'Set Environment variable NPM_PUBLISH_MODE to oidc or token' >&2; exit 1 ;;
+          esac
+      - name: Publish via selected npm authentication method
+        env:
+          NPM_PUBLISH_MODE: ${{ vars.NPM_PUBLISH_MODE }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: node scripts/publish-approved.mjs
-      # No persistent npm token. npm scope and each existing package must
-      # trust drhspfn/riglyph, workflow release.yml, environment npm-release.
+      # Configure Environment 'npm-release' variable NPM_PUBLISH_MODE=oidc|token.
+      # For token mode also configure an Environment secret NPM_TOKEN.
+      # npm OIDC is used only when explicitly selected, never as silent fallback.
       # A failed partial publish is fatal; published npm versions are immutable.
