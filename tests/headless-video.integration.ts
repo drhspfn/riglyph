@@ -28,6 +28,20 @@ const probe=(filename:string)=>{
 test('preflight: FFmpeg executable and required codecs must exist',()=>{
  assert.match(probeFFmpeg(ffmpeg),/ffmpeg version/i);
 });
+test('PNG sequence artifact is independently decodable without FFmpeg',async()=>{
+ await mkdir(base,{recursive:true});
+ const out=join(base,'png-sequence');
+ const result=run(['--format','png-sequence','--out-dir',out,'--overwrite']);
+ assert.equal(result.status,0,result.stderr);
+ const files=await import('node:fs/promises').then(m=>m.readdir(out));
+ assert.equal(files.filter(f=>f.endsWith('.png')).length,4);
+ const manifest=JSON.parse(await readFile(join(out,'render-manifest.json'),'utf8'));
+ assert.equal(manifest.status,'completed');assert.equal(manifest.frameCount,4);
+ const decoder=await import('@riglyph/cli');
+ const png=decoder.decodePNG(await readFile(join(out,'frame_000000.png')));
+ assert.equal(png.width,64);assert.equal(png.height,64);
+ assert.ok(png.rgba.some(v=>v>0));
+});
 test('H.264 MP4 is opaque green-screen, dimensions/fps/frameCount verified',async()=>{
  await mkdir(base,{recursive:true});
  const file=join(base,'green-screen.mp4');
