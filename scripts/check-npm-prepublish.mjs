@@ -3,8 +3,8 @@ import {spawnSync} from 'node:child_process';
 import {readFileSync} from 'node:fs';
 const version=JSON.parse(readFileSync('package.json','utf8')).version;
 if(process.env.GITHUB_ACTIONS!=='true'||
-   process.env.GITHUB_EVENT_NAME!=='release'||
-   ![`refs/tags/${version}`,`refs/tags/v${version}`].includes(process.env.GITHUB_REF)||
+   !((process.env.GITHUB_EVENT_NAME==='release' && [`refs/tags/${version}`,`refs/tags/v${version}`].includes(process.env.GITHUB_REF)) ||
+     (process.env.GITHUB_EVENT_NAME==='workflow_dispatch' && process.env.GITHUB_REF==='refs/heads/main' && [version,`v${version}`].includes(process.env.RIGLYPH_RELEASE_TAG)))||
    process.env.GITHUB_REPOSITORY!=='drhspfn/riglyph')
  throw Error('Publishing is only allowed from the matching GitHub Release in drhspfn/riglyph');
 
