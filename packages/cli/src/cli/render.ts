@@ -60,6 +60,23 @@ export async function parseRenderOptions(argv:readonly string[]):Promise<RenderC
   config=data as Record<string,unknown>;
   for(const key of Object.keys(config))requireCondition(Object.values(properties).includes(key as Key)||Object.values(bools).includes(key as Key)||
    ['quality','timeline'].includes(key),'INVALID_HEADER',`Unknown render config property ${key}`);
+  if(config['camera']!==undefined&&typeof config['camera']!=='string'){
+   const v=config['camera'];requireCondition(v!==null&&typeof v==='object'&&!Array.isArray(v),'INVALID_HEADER','camera must be a mode or object');
+   for(const key of Object.keys(v))requireCondition(['mode','fit','targetBoneId','targetSlotId','padding','scale',
+    'offsetX','offsetY','x','y','worldWidth'].includes(key),'INVALID_HEADER',`Unknown camera field ${key}`);
+  }
+  if(config['quality']!==undefined){
+   const v=config['quality'];requireCondition(v!==null&&typeof v==='object'&&!Array.isArray(v),'INVALID_HEADER','quality must be object');
+   for(const key of Object.keys(v))requireCondition(['sampling','supersampling'].includes(key),'INVALID_HEADER',`Unknown quality field ${key}`);
+  }
+  if(config['timeline']!==undefined){
+   const v=config['timeline'];requireCondition(Array.isArray(v),'INVALID_TIMELINE','timeline must be an array');
+   for(const action of v){
+    requireCondition(action!==null&&typeof action==='object'&&!Array.isArray(action),'INVALID_TIMELINE','Invalid timeline action');
+    for(const key of Object.keys(action))requireCondition(['atSec','track','clipId','loop','mixDurationSec'].includes(key),
+     'INVALID_TIMELINE',`Unknown timeline action field ${key}`);
+   }
+  }
  }
  delete parsed['config'];
  return {...config,...parsed} as RenderCliConfig;
@@ -120,6 +137,7 @@ export async function runRenderCli(file:string,argv:readonly string[]):Promise<v
  const speed=assertPositive(o.playbackSpeed??1,'playbackSpeed');
  const start=o.start??0;requireCondition(Number.isFinite(start)&&start>=0,'INVALID_TIMELINE','Invalid start');
  const duration=ir.skeleton.animations.find(a=>a.id===clip)?.durationSec??0;
+ requireCondition(o.loopCount===undefined||o.end===undefined,'INVALID_HEADER','Use either --end or --loop-count, not both');
  const end=o.end??start+duration*(o.loopCount??1)/speed;
  requireCondition(Number.isFinite(end)&&end>=start,'INVALID_TIMELINE','Invalid end');
  requireCondition(o.pngCompression===undefined||Number.isInteger(o.pngCompression)&&o.pngCompression>=0&&o.pngCompression<=9,
