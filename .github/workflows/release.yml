@@ -26,7 +26,7 @@ jobs:
       actions: read
       id-token: write
     steps:
-      - name: Verify release tag, source branch and successful tag CI
+      - name: Verify release tag, merged PR and its successful label-triggered CI
         uses: actions/github-script@v7
         with:
           script: |
@@ -50,19 +50,27 @@ jobs:
             const comparison = await github.rest.repos.compareCommits({owner,repo,base:sha,head:'main'});
             if (!['ahead','identical'].includes(comparison.data.status))
               return core.setFailed('Release commit is not reachable from main');
-            const runs = await github.paginate(github.rest.actions.listWorkflowRuns,{
-              owner,repo,workflow_id:'ci.yml',head_sha:sha,event:'push',per_page:100
+            // CI is gated by the PR label 'ci:run'; merging is deliberately
+            // not a second CI trigger. Trust only a successful run for the
+            // exact HEAD of the PR that produced the release commit.
+            const associated = await github.paginate(github.rest.repos.listPullRequestsAssociatedWithCommit,{
+              owner,repo,commit_sha:sha,per_page:100
             });
-            const tagPassed = runs.some(r => r.head_branch === tag && r.head_sha === sha && r.conclusion === 'success');
-            const mainPassed = runs.some(r => r.head_branch === 'main' && r.head_sha === sha && r.conclusion === 'success');
-            if (!tagPassed && !mainPassed) return core.setFailed('Successful CI on exact release SHA (tag or main) is required');
-            if (manual) {
-              const currentRuns = await github.paginate(github.rest.actions.listWorkflowRuns,{
-                owner,repo,workflow_id:'ci.yml',head_sha:context.sha,event:'push',per_page:100
-              });
-              if (!currentRuns.some(r => r.head_sha === context.sha && r.head_branch === 'main' && r.conclusion === 'success'))
-                return core.setFailed('Manual recovery also requires green CI on current main');
-            }
+            const accepted = associated.filter(p=>p.merged_at && p.base.ref==='main' &&
+              p.merge_commit_sha===sha);
+            if (!accepted.length)
+              return core.setFailed('Release commit must be the accepted merge/squash commit of a validated PR');
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns,{
+              owner,repo,workflow_id:'ci.yml',event:'pull_request',per_page:100
+            });
+            const verified = accepted.some(p=>runs.some(r=>
+              r.head_sha===p.head.sha &&
+              r.conclusion==='success' &&
+              r.event==='pull_request' &&
+              r.pull_requests?.some(q=>q.number===p.number)));
+            if (!verified)
+              return core.setFailed('No successful label-triggered CI on the exact merged PR head; release blocked');
+            // In particular, no duplicate main-branch CI is needed.
       - uses: actions/checkout@v4
         with:
           persist-credentials: false

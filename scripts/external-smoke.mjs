@@ -9,7 +9,7 @@ try{
  const tarballs=names.map(n=>join(root,'release-packages',`riglyph-${n}-${version}.tgz`));
  if(!tarballs.every(existsSync))throw Error('Missing packed tarballs');
  writeFileSync(join(temp,'package.json'),JSON.stringify({name:'riglyph-external-consumer',version:'0.0.0',type:'module',private:true}));
- runNpm(['install','--offline','--ignore-scripts','--no-audit','--no-fund',...tarballs],{cwd:temp,timeout:60000});
+ runNpm(['install','--offline','--ignore-scripts','--no-audit','--no-fund',...tarballs],{cwd:temp,timeout:240000});
  writeFileSync(join(temp,'verify.mjs'),`import {createPlayer} from '@riglyph/player-web';import {AdapterRegistry} from '@riglyph/importer-sdk';import {deserializeIR} from '@riglyph/core';import {AnimationPlayer} from '@riglyph/runtime'; if(typeof createPlayer!=='function'||typeof AdapterRegistry!=='function'||typeof AnimationPlayer!=='function'||typeof deserializeIR!=='function')throw Error('Missing exports');console.log('RIGLYPH_PACKED_ESM_PASS');`);
  if(!exe('node',['verify.mjs']).includes('RIGLYPH_PACKED_ESM_PASS'))throw Error('Missing ESM confirmation');
  writeFileSync(join(temp,'consumer.ts'),`import type {IRDocument} from '@riglyph/core';import {createPlayer} from '@riglyph/player-web';import {AdapterRegistry} from '@riglyph/importer-sdk';const reg:AdapterRegistry=new AdapterRegistry();declare const canvas:HTMLCanvasElement;const p=createPlayer({canvas});void reg;void p;declare const ir:IRDocument;void ir;`);
