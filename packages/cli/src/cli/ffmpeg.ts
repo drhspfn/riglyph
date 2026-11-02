@@ -9,7 +9,7 @@ import {EngineError,requireCondition} from '@riglyph/core';
 export type VideoFormat='mp4'|'webm';
 export type EncoderSettings={format:VideoFormat;width:number;height:number;fps:number;alpha?:boolean;
  background?:string;crf?:number;preset?:string;bitrate?:string;ffmpegPath?:string;ffprobePath?:string;
- output:string;overwrite?:boolean;signal?:AbortSignal;};
+ output:string;overwrite?:boolean;signal?:AbortSignal;timeoutMs?:number;};
 const bad=(msg:string)=>new EngineError('UNSUPPORTED_SEMANTIC_FEATURE',msg);
 const run=(command:string,args:string[],timeout=20000)=>{
  const p=spawnSync(command,args,{encoding:'utf8',timeout,maxBuffer:2*1024*1024,windowsHide:true});
@@ -39,6 +39,8 @@ export function validateEncoder(options:EncoderSettings):void{
  requireCondition(!options.preset||/^(ultrafast|superfast|veryfast|faster|fast|medium|slow|slower|veryslow|realtime|good|best)$/.test(options.preset),'INVALID_HEADER','Invalid encoder preset');
  requireCondition(!options.bitrate||/^\d+[kKmM]?$/.test(options.bitrate),'INVALID_HEADER','Invalid bitrate');
  requireCondition(!!options.output,'INVALID_HEADER','Output file required');
+ requireCondition(options.timeoutMs===undefined||Number.isSafeInteger(options.timeoutMs)&&options.timeoutMs>0,
+  'INVALID_HEADER','Invalid FFmpeg timeout');
 }
 function videoArgs(o:EncoderSettings,out:string):string[]{
  const base=['-hide_banner','-loglevel','warning','-nostdin','-y','-f','rawvideo','-pixel_format','rgba',
@@ -100,6 +102,8 @@ export async function encodeVideoFrames(o:EncoderSettings,render:(consume:(frame
  const exit=new Promise<number>((yes,no)=>{child.once('error',no);child.once('exit',(code)=>yes(code??-1));});
  child.stdin.on('error',e=>{fatal=e;});
  const cancel=()=>{child.stdin?.destroy();child.kill('SIGKILL');};
+ let timedOut=false;
+ const timeout=setTimeout(()=>{timedOut=true;cancel();},o.timeoutMs??3600000);
  o.signal?.addEventListener('abort',cancel,{once:true});
  let frames=0,alphaPixel:number|null=null;
  try{
@@ -114,6 +118,7 @@ export async function encodeVideoFrames(o:EncoderSettings,render:(consume:(frame
   requireCondition(count===frames&&frames>0,'INVALID_TIMELINE','Encoded frame count disagrees with render scheduler');
   child.stdin.end();
   const code=await exit;
+  requireCondition(!timedOut,'OUTPUT_COMMIT_FAILED','FFmpeg encoding exceeded the timeout');
   requireCondition(code===0,'UNSUPPORTED_SEMANTIC_FEATURE',`FFmpeg exited ${code}: ${stderr.slice(-4000)}`);
   const probe=probeVideo(staged,settings,count,alphaPixel);
   if(!previous){await rename(staged,destination);return probe;}
@@ -127,5 +132,5 @@ export async function encodeVideoFrames(o:EncoderSettings,render:(consume:(frame
   await rm(backup,{force:true}).catch(e=>process.stderr.write(`WARNING: video committed; old backup retained at ${backup}: ${String(e)}\\n`));
   return probe;
  }catch(e){cancel();await exit.catch(()=>{});throw e;}
- finally{o.signal?.removeEventListener('abort',cancel);await rm(staged,{force:true}).catch(()=>{});}
+ finally{clearTimeout(timeout);o.signal?.removeEventListener('abort',cancel);await rm(staged,{force:true}).catch(()=>{});}
 }
