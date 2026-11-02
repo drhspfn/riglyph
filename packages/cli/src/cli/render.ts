@@ -125,7 +125,7 @@ export async function runRenderCli(file:string,argv:readonly string[]):Promise<v
  requireCondition(o.pngCompression===undefined||Number.isInteger(o.pngCompression)&&o.pngCompression>=0&&o.pngCompression<=9,
   'INVALID_HEADER','PNG compression must be 0..9');
  const camValue=o.camera;
- const camera:CameraSettings=typeof camValue==='string'?{mode:camValue as CameraSettings['mode']}:{...(camValue??{})};
+ const camera:CameraSettings=typeof camValue==='string'?{mode:camValue as NonNullable<CameraSettings['mode']>}:{...(camValue??{})};
  if(o.cameraFit!==undefined)camera.fit=o.cameraFit;
  if(o.cameraScale!==undefined)camera.scale=o.cameraScale;
  if(o.cameraPadding!==undefined)camera.padding=o.cameraPadding;
@@ -152,8 +152,8 @@ export async function runRenderCli(file:string,argv:readonly string[]):Promise<v
   process.stderr.write(progressMode==='json'?JSON.stringify(event)+'\n':
    `[${event['phase']}] ${event['frame']??0}/${event['totalFrames']??0}\r`);
  };
- const sequence={clipId:clip,skinId:o.skin,startSec:start,endSec:end,fps,loop:o.loop??!!o.loopCount,
-  loopCount:o.loopCount,playbackSpeed:speed,timeline:o.timeline,includeEnd:o.includeEnd??false,
+ const sequence={...(clip?{clipId:clip}:{}),...(o.skin?{skinId:o.skin}:{}),startSec:start,endSec:end,fps,loop:o.loop??!!o.loopCount,
+  ...(o.loopCount!==undefined?{loopCount:o.loopCount}:{}),playbackSpeed:speed,...(o.timeline?{timeline:o.timeline}:{}),includeEnd:o.includeEnd??false,
   signal:signal.signal,onProgress:(p:{phase:string;frame:number;totalFrames:number;timeSec:number})=>notify({event:'render-progress',...p})};
  try{
   notify({event:'render-progress',phase:'initialization',frame:0,totalFrames:0});
@@ -181,9 +181,11 @@ export async function runRenderCli(file:string,argv:readonly string[]):Promise<v
    requireCondition(validString(o.out)&&!o.outDir,'INVALID_HEADER','Video requires --out and forbids --out-dir');
    if(format==='mp4')requireCondition(!o.alpha,'INVALID_HEADER','MP4 does not preserve alpha');
    let resultFrameCount=0;
-   const output=await encodeVideoFrames({format,width,height,fps,alpha:transparent,background:o.background,
-    crf:o.crf,preset:o.preset,bitrate:o.bitrate,ffmpegPath:o.ffmpegPath,ffprobePath:o.ffprobePath,
-    output:o.out!,overwrite:o.overwrite,signal:signal.signal},async consume=>{
+   const output=await encodeVideoFrames({format,width,height,fps,alpha:transparent,
+    ...(o.background?{background:o.background}:{}),...(o.crf!==undefined?{crf:o.crf}:{}),
+    ...(o.preset?{preset:o.preset}:{}),...(o.bitrate?{bitrate:o.bitrate}:{}),
+    ...(o.ffmpegPath?{ffmpegPath:o.ffmpegPath}:{}),...(o.ffprobePath?{ffprobePath:o.ffprobePath}:{}),
+    output:o.out!,overwrite:o.overwrite??false,signal:signal.signal},async consume=>{
     const result=await engine.renderSequence({...sequence,onFrame:async(frame,index,total)=>{
      await consume(frame.rgba);resultFrameCount=total;
     }});
