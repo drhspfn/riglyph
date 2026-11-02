@@ -6,7 +6,12 @@ pub const MAGIC: &[u8; 4] = b"RGP1";
 pub const ABI_VERSION: u32 = 1;
 pub const PROTOCOL_VERSION: u16 = 1;
 pub const MAX_MESSAGE: usize = 256 * 1024 * 1024;
+// Framebuffer and atlas pages have separate budgets. A 4096x4096 atlas
+// requires 64 MiB of RGBA8 storage and must not be treated as a render surface.
 pub const MAX_PIXELS: usize = 8_388_608;
+pub const MAX_TEXTURE_SIDE: usize = 8_192;
+pub const MAX_TEXTURE_PIXELS: usize = 32 * 1024 * 1024;
+pub const MAX_TEXTURE_CACHE_BYTES: usize = 512 * 1024 * 1024;
 pub const MAX_VERTICES: usize = 6_000_000;
 
 #[derive(Debug, Clone)]
@@ -43,10 +48,19 @@ impl<'a> Reader<'a> {
  fn f64(&mut self)->Result<f64,String>{let x=f64::from_le_bytes(self.take(8)?.try_into().unwrap());if x.is_finite(){Ok(x)}else{Err("non-finite material or viewport".into())}}
  fn done(self)->Result<(),String>{if self.pos==self.data.len(){Ok(())}else{Err("unexpected trailing packet bytes".into())}}
 }
-fn bounded_image(w:usize,h:usize)->Result<usize,String>{
- let count=w.checked_mul(h).ok_or("image dimensions overflow")?;
- if w==0||h==0||count>MAX_PIXELS{return Err("image surface budget exceeded".into());}
+fn bounded_surface(w:usize,h:usize)->Result<usize,String>{
+ let count=w.checked_mul(h).ok_or("framebuffer dimensions overflow")?;
+ if w==0||h==0||count>MAX_PIXELS{return Err("framebuffer surface budget exceeded".into());}
  Ok(count)
+}
+/// Texture pages are retained in RGBA8 cache across render frames; unlike a
+/// framebuffer, one page may be 4096x4096 or larger within its own budget.
+pub fn bounded_texture(w:usize,h:usize)->Result<usize,String>{
+ let count=w.checked_mul(h).ok_or("texture dimensions overflow")?;
+ if w==0||h==0||w>MAX_TEXTURE_SIDE||h>MAX_TEXTURE_SIDE||count>MAX_TEXTURE_PIXELS{
+  return Err("texture dimensions exceed native atlas page budget".into());
+ }
+ count.checked_mul(4).ok_or("texture byte count overflow".into())
 }
 pub fn parse_request(data:&[u8])->Result<Request,String>{
  if data.len()>MAX_MESSAGE{return Err("packet exceeds maximum length".into());}
@@ -60,13 +74,13 @@ pub fn parse_request(data:&[u8])->Result<Request,String>{
    let id=r.u32()?;let w=r.u32()? as usize;let h=r.u32()? as usize;
    let pma=r.u8()?!=0;let wrap_u=r.u8()?;let wrap_v=r.u8()?;let reserved=r.u8()?;
    if wrap_u>1||wrap_v>1||reserved!=0{return Err("invalid texture flags".into());}
-   let expected=bounded_image(w,h)?.checked_mul(4).ok_or("texture budget overflow")?;
+   let expected=bounded_texture(w,h)?;
    let n=r.u32()? as usize;if n!=expected{return Err("texture byte count mismatch".into());}
    let pixels=r.take(n)?.to_vec();
    Request::Load(id,Texture{width:w,height:h,rgba:pixels,pma,wrap_u,wrap_v})
   },
   2=>{
-   let w=r.u32()? as usize;let h=r.u32()? as usize;bounded_image(w,h)?;
+   let w=r.u32()? as usize;let h=r.u32()? as usize;bounded_surface(w,h)?;
    let mut view=[0.;4];let mut clear=[0.;4];
    for v in &mut view{*v=r.f64()?;}for v in &mut clear{*v=r.f64()?;}
    if view[2]<=0.||view[3]<=0.||clear.iter().any(|x|*x<0.||*x>1.){
@@ -112,9 +126,16 @@ pub fn serialize_response(result:Result<&[u8],&str>)->Vec<u8>{
 pub struct TextureStore{ pub textures:HashMap<u32,Texture> }
 impl TextureStore{
  pub fn load(&mut self,id:u32,tex:Texture)->Result<(),String>{
-  let total:usize=self.textures.values().map(|t|t.rgba.len()).sum();
+  let expected=bounded_texture(tex.width,tex.height)?;
+  if tex.rgba.len()!=expected{return Err("texture storage length mismatch".into());}
+  if tex.wrap_u>1||tex.wrap_v>1{return Err("invalid texture wrap mode".into());}
+  let total=self.textures.values().try_fold(0usize,|sum,t|{
+   sum.checked_add(t.rgba.len()).ok_or("texture cache size overflow")
+  })?;
   let current=self.textures.get(&id).map_or(0,|t|t.rgba.len());
-  if total-current+tex.rgba.len()>512*1024*1024{return Err("texture cache exceeds 512 MiB".into());}
+  let next=total.checked_sub(current).and_then(|v|v.checked_add(expected))
+   .ok_or("texture cache size overflow")?;
+  if next>MAX_TEXTURE_CACHE_BYTES{return Err("texture cache exceeds 512 MiB".into());}
   self.textures.insert(id,tex);Ok(())
  }
 }
