@@ -8,7 +8,7 @@ if(process.env.GITHUB_ACTIONS!=='true'||
    process.env.GITHUB_REPOSITORY!=='drhspfn/riglyph')
  throw Error('Publishing is only allowed from the matching GitHub Release in drhspfn/riglyph');
 
-const names=['core','importer-sdk','runtime','renderer-webgl2','renderer-cpu','importer-spine-4.1','player-web','cli'];
+const names=['core','importer-sdk','runtime','renderer-webgl2','renderer-cpu','renderer-native','importer-spine-4.1','player-web','cli'];
 let blocked=false;
 for(const name of names){
  const spec=`@riglyph/${name}@${version}`;
@@ -18,4 +18,4 @@ for(const name of names){
  else console.log('ABSENT: '+spec);
 }
 if(blocked)process.exit(1);
-console.log('All eight candidate versions absent; verify scope ownership and npm OIDC trust before creating a release.');
+console.log('All nine candidate versions absent; verify scope ownership and npm OIDC trust before creating a release.');
