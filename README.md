@@ -124,3 +124,22 @@ Output frames use precise index-derived timestamps, camera prepass and bounded
 per-frame rendering, keeping original IK/Path/deform/clipping behavior.
 See [Headless rendering](docs/headless-rendering.md), [FFmpeg video](docs/video-export.md),
 and the [minimal example](examples/headless-render/README.md).
+
+
+## Optional Rust native raster acceleration (A22)
+
+Riglyph can feed its existing evaluated Universal IR draw packets into a
+persistent **Rust CPU renderer**. The JavaScript CPU and WebGL2 renderers remain
+operational. Use a matching prebuilt native executable with
+`@riglyph/renderer-native`, or continue using `--backend js`.
+
+```sh
+RIGLYPH_NATIVE_BIN=native/target/release/riglyph-native npm run cli -- render fixtures/minimal.json --images fixtures --clip rotate90 --backend native-cpu --native-threads 4 --out-dir test-output/native
+```
+
+See [native installation](docs/native-renderer.md),
+[architecture and protocol](docs/native-renderer-architecture.md),
+[C ABI](docs/native-renderer-ffi.md), and
+[controlled benchmarks](docs/native-renderer-performance.md). Native implementation
+v0.1.0, ABI1 and protocol1 are separate from the target v0.16.1 release.
+No release or npm publication occurs as part of A22.

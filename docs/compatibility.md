@@ -89,3 +89,22 @@ A fit-scene animation camera envelope samples requested output frames; it is
 not an exact continuous-time extremum. WebM alpha requires compatible players
 and decoders. FFmpeg is not bundled and no audio is muxed. Video requires even
 dimensions for 4:2:0 conversion.
+
+
+## A22 Rust Native Rasterizer
+
+Optional feature: Rust native CPU rasterization from versioned RGP1 v1
+canonical draw packets. The TypeScript Universal IR parser, animation evaluator,
+IK and Path remain authoritative. Supported prebuilt matrix: Windows x64,
+Linux x64, macOS ARM64, with C ABI v1 and native implementation v0.1.0.
+New binary/profile formats are not implied. The prior JS renderer is available
+and forms the pixel-diff regression baseline; this is not an additional
+Spine source-format compatibility claim.
+
+The native shared library alone cannot animate arbitrary Universal IR or
+source-format skeleton files. Its C/Python clients provide pre-evaluated
+packet inputs. No proprietary source-runtime code is embedded.
+
+### Native atlas-size regression (A22)
+
+4096×4096 RGBA8 atlas pages are supported independently of the maximum 8,388,608-pixel **render framebuffer**. Per-page limit: 8192 per side and 33,554,432 pixels; total cache: 512 MiB. Native CI checks a full-size 4096×4096 binary upload, reuse across renders, and pixel agreement with the existing JS rasterizer.

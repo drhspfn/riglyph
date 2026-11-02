@@ -2,7 +2,7 @@ import {runNpm} from './npm-process.mjs';
 import {readFileSync,mkdirSync,writeFileSync,readdirSync,statSync,unlinkSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {resolve,join} from 'node:path';
-const allPackages=['core','runtime','renderer-webgl2','renderer-cpu','importer-sdk','importer-spine-4.1','player-web','cli'];
+const allPackages=['core','runtime','renderer-webgl2','renderer-cpu','renderer-native','importer-sdk','importer-spine-4.1','player-web','cli'];
 const packages=process.env.RIGLYPH_PACK_ONLY ? allPackages.filter(name=>name===process.env.RIGLYPH_PACK_ONLY):allPackages;
 if(!packages.length)throw new Error('Unknown RIGLYPH_PACK_ONLY package');
 const dir=resolve(process.env.RIGLYPH_PACK_DESTINATION??'release-packages');mkdirSync(dir,{recursive:true});for(const file of readdirSync(dir))if(file.endsWith('.tgz'))unlinkSync(join(dir,file));const summary=[];

@@ -82,7 +82,7 @@ jobs:
             import fs from "node:fs";
             const root=JSON.parse(fs.readFileSync("package.json"));
             if(![root.version,`v${root.version}`].includes(process.env.RELEASE_TAG))throw Error("Tag must equal root package version, optionally prefixed by v");
-            for(const name of ["core","importer-sdk","runtime","renderer-webgl2","renderer-cpu","importer-spine-4.1","player-web","cli"]){
+            for(const name of ["core","importer-sdk","runtime","renderer-webgl2","renderer-cpu","renderer-native","importer-spine-4.1","player-web","cli"]){
               const pkg=JSON.parse(fs.readFileSync(`packages/${name}/package.json`));
               if(pkg.version!==root.version)throw Error(`Version mismatch: ${name}`);
             }
@@ -93,7 +93,7 @@ jobs:
       - name: Verify scope and owner configuration
         run: |
           node --input-type=module -e "import fs from 'node:fs';const p=JSON.parse(fs.readFileSync('packages/core/package.json'));if(p.repository.url.includes('/OWNER/'))process.exit(1)"
-      - name: Check all eight npm versions are unpublished
+      - name: Check all nine npm versions are unpublished
         env:
           RIGLYPH_RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.event.release.tag_name }}
         run: node scripts/check-npm-prepublish.mjs

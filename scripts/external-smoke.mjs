@@ -5,7 +5,7 @@ import {runNpm} from './npm-process.mjs';
 const root=resolve();const version=JSON.parse(readFileSync(join(root,'package.json'),'utf8')).version;const temp=mkdtempSync(join(tmpdir(),'riglyph-external-'));
 const exe=(command,args,cwd=temp)=>{const x=spawnSync(command,args,{cwd,encoding:'utf8',timeout:60000});if(x.status!==0)throw Error(`${command} ${args.join(' ')} status=${x.status} ${x.stderr||x.stdout}`);return x.stdout;};
 try{
- const names=['core','runtime','renderer-webgl2','renderer-cpu','importer-sdk','importer-spine-4.1','player-web','cli'];
+ const names=['core','runtime','renderer-webgl2','renderer-cpu','renderer-native','importer-sdk','importer-spine-4.1','player-web','cli'];
  const tarballs=names.map(n=>join(root,'release-packages',`riglyph-${n}-${version}.tgz`));
  if(!tarballs.every(existsSync))throw Error('Missing packed tarballs');
  writeFileSync(join(temp,'package.json'),JSON.stringify({name:'riglyph-external-consumer',version:'0.0.0',type:'module',private:true}));
@@ -24,5 +24,5 @@ try{
  if(manifest.assetFormat!=='universal-skeleton-asset'||manifest.pages.length!==1)throw Error('Invalid portable asset manifest');
  const valid=JSON.parse(exe(process.execPath,[cli,'validate',join(output,'skeleton.ir.json')]));if(!valid.valid)throw Error('IR validation failed');
  if(!existsSync(join(output,'textures','synthetic-example.png')))throw Error('Missing copied texture');
- console.log(JSON.stringify({status:'PASS',installedTarballs:8,esm:true,types:true,cli:'riglyph',sourceVersion:probe.identity.version,manifest:true,validation:true,externalDirectory:true},null,2));
+ console.log(JSON.stringify({status:'PASS',installedTarballs:9,esm:true,types:true,cli:'riglyph',sourceVersion:probe.identity.version,manifest:true,validation:true,externalDirectory:true},null,2));
 }finally{rmSync(temp,{recursive:true,force:true});}

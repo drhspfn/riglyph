@@ -1,0 +1,12 @@
+[workspace]
+members = ["crates/riglyph-render-core", "crates/riglyph-render-cpu", "crates/riglyph-render-io", "crates/riglyph-render-ffi", "crates/riglyph-render-cli"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
+version = "0.1.0"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

@@ -1,0 +1,132 @@
+name: Riglyph native renderer CI and artifacts
+on:
+  pull_request:
+    paths:
+      - "native/**"
+      - "packages/renderer-native/**"
+      - "packages/renderer-cpu/**"
+      - "packages/cli/**"
+      - "tests/native-**"
+      - ".github/workflows/native-release.yml"
+  workflow_dispatch:
+  release:
+    types: [published]
+concurrency:
+  group: a22-native-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+permissions:
+  contents: read
+jobs:
+  native:
+    name: Native ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-x64
+            os: ubuntu-24.04
+            lib: libriglyph_render_ffi.so
+            exe: riglyph-native
+          - platform: windows-x64
+            os: windows-2025
+            lib: riglyph_render_ffi.dll
+            exe: riglyph-native.exe
+          - platform: macos-arm64
+            os: macos-15
+            lib: libriglyph_render_ffi.dylib
+            exe: riglyph-native
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Rust unit, protocol and FFI tests
+        run: cargo test --manifest-path native/Cargo.toml --workspace --locked
+      - name: Native optimized binaries
+        run: cargo build --manifest-path native/Cargo.toml --workspace --release --locked
+      - name: Rust lint
+        run: cargo clippy --manifest-path native/Cargo.toml --workspace --all-targets -- -D warnings
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      - name: Native bridge and JS pixel parity
+        env:
+          RIGLYPH_NATIVE_BIN: native/target/release/${{ matrix.exe }}
+        run: node --test dist/tests/native-*.spec.js
+      - name: Python ctypes renders RGBA through the C ABI
+        env:
+          RIGLYPH_NATIVE_LIB: native/target/release/${{ matrix.lib }}
+        run: python examples/native-renderer/ctypes-render.py
+      - name: C consumer compiles and verifies RGBA
+        if: runner.os != 'Windows'
+        env:
+          RIGLYPH_NATIVE_LIB: native/target/release/${{ matrix.lib }}
+        run: python examples/native-renderer/c-consumer.py
+      - name: Install FFmpeg / ffprobe on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install FFmpeg / ffprobe on Windows
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --yes --no-progress
+      - name: Install FFmpeg / ffprobe on macOS
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - name: Native A21 full PNG, H264 and VP9-alpha video integration
+        env:
+          RIGLYPH_NATIVE_BIN: native/target/release/${{ matrix.exe }}
+        run: node scripts/native-export-test.mjs
+      - name: Matched JS/Rust 800x600 performance benchmark (Linux)
+        if: runner.os == 'Linux'
+        env:
+          RIGLYPH_NATIVE_BIN: native/target/release/${{ matrix.exe }}
+          BENCH_REPS: 12
+          BENCH_WARM: 5
+          BENCH_WIDTH: 800
+          BENCH_HEIGHT: 600
+        run: node tools/native-benchmarks/benchmark.mjs
+      - name: Save decoded RGBA/PNG, MP4, VP9, and benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: riglyph-native-output-${{ matrix.platform }}
+          path: |
+            test-output/native/
+            native/dist/native-benchmarks.json
+          if-no-files-found: warn
+      - name: Bundle library, binary, header, license, version, hashes
+        run: node scripts/native-package.mjs ${{ matrix.platform }} native/target/release/${{ matrix.exe }} native/target/release/${{ matrix.lib }}
+      - name: Native package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: riglyph-native-${{ matrix.platform }}
+          path: |
+            native/dist/${{ matrix.platform }}/
+            native/dist/riglyph-native-v0.16.1-${{ matrix.platform }}.*
+          if-no-files-found: error
+  publish-release:
+    if: github.event_name == 'release' && github.event.action == 'published'
+    needs: [native]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: riglyph-native-*
+          path: release-assets
+      - name: Only upload to the matching approved Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        shell: bash
+        run: |
+          test "$TAG" = "v0.16.1"
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY"
+          shopt -s globstar nullglob
+          archives=(release-assets/**/riglyph-native-v0.16.1-*.tar.gz release-assets/**/riglyph-native-v0.16.1-*.zip)
+          checksums=(release-assets/**/riglyph-native-v0.16.1-*.sha256)
+          test "${#archives[@]}" -eq 3
+          test "${#checksums[@]}" -eq 3
+          # gh release upload without --clobber refuses duplicates; no npm publication.
+          gh release upload "$TAG" "${archives[@]}" "${checksums[@]}" --repo "$GITHUB_REPOSITORY"

@@ -19,7 +19,7 @@ if(mode==='token'){
 }else{
  delete publishEnv.NODE_AUTH_TOKEN;
 }
-const names=['core','importer-sdk','runtime','renderer-webgl2','renderer-cpu','importer-spine-4.1','player-web','cli'];
+const names=['core','importer-sdk','runtime','renderer-webgl2','renderer-cpu','renderer-native','importer-spine-4.1','player-web','cli'];
 for(const name of names){
  console.log('Publishing @riglyph/'+name+'@'+version);
  const args=['publish','--workspace',`packages/${name}`,'--access','public'];

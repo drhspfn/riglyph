@@ -8,7 +8,7 @@ const run=(cmd,args,cwd)=>spawnSync(cmd,args,{cwd,encoding:'utf8',timeout:120000
 let server;
 try{
  const releaseVersion=JSON.parse(readFileSync(join(root,'package.json'),'utf8')).version;
- const tarballs=['core','runtime','renderer-webgl2','renderer-cpu','importer-sdk','importer-spine-4.1','player-web','cli'].map(name=>join(base,`riglyph-${name}-${releaseVersion}.tgz`));
+ const tarballs=['core','runtime','renderer-webgl2','renderer-cpu','renderer-native','importer-sdk','importer-spine-4.1','player-web','cli'].map(name=>join(base,`riglyph-${name}-${releaseVersion}.tgz`));
  writeFileSync(join(dir,'package.json'),JSON.stringify({name:'packed-skeleton-smoke',private:true,type:'module',version:'1.0.0'})+'\n');
  const install=run('npm',['install','--offline','--ignore-scripts','--no-audit','--no-fund',...tarballs],dir);
  if(install.status!==0)throw Error(`External tarball install failed: ${install.stderr}`);
