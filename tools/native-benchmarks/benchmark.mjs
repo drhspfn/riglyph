@@ -5,7 +5,7 @@
  */
 import {performance} from 'node:perf_hooks';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
-import {resolve,dirname} from 'node:path';
+import {resolve,dirname,join} from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {deserializeIR} from '@riglyph/core';
 import {SkeletonInstance} from '@riglyph/runtime';
