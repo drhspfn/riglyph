@@ -1,0 +1,8 @@
+[package]
+name = "riglyph-render-cpu"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+riglyph-render-core = { path = "../riglyph-render-core" }
