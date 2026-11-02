@@ -1,11 +1,11 @@
 /* End-to-end A21 animation export through Rust native backend. Always verify
  * decoded output, not merely process exit. Invoked after native build in CI. */
 import {spawnSync} from 'node:child_process';
-import {readFile,mkdtemp,readdir,rm,stat} from 'node:fs/promises';
-import {tmpdir} from 'node:os';
+import {readFile,mkdir,readdir,stat} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {decodePNG} from '@riglyph/cli';
-const root=await mkdtemp(join(tmpdir(),'riglyph-native-export-'));
+const root=resolve('test-output/native');
+await mkdir(root,{recursive:true});
 const run=(options)=>{
  const res=spawnSync(process.execPath,['packages/cli/dist/cli/main.js','render',
   'fixtures/minimal.json','--images','fixtures','--clip','rotate90','--backend','native-cpu',
@@ -32,4 +32,4 @@ try{
  for(const file of [mp4,webm])if((await stat(file)).size<200)throw Error('Encoded video is empty');
  console.log(JSON.stringify({status:'pass',pngFrames:4,codecMp4:'h264',codecWebM:'vp9',
   rgbaAlpha:transparent.probe.decodedAlphaVerified,platform:process.platform}));
-}finally{await rm(root,{recursive:true,force:true});}
+}finally{/* CI retains PNG/MP4/WebM as downloadable evidence. */}
