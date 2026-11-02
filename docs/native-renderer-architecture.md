@@ -16,6 +16,6 @@ Response: uint32 LE byte length, uint8 status (0 success, 1 UTF-8 error), RGBA8 
 
 ## Ownership, threading and budgets
 
-The Node bridge copies every response into a self-owned Uint8Array. Rust holds the texture cache and a reusable float32 premultiplied framebuffer, with explicit destroy/reset. Memory budgets: 8,388,608 output pixels, 512 MiB texture cache, 6 million vertices per request and 256 MiB protocol frame cap. Threads operate disjoint horizontal bands, with ordered triangle processing within each; no concurrent writes to the same pixel.
+The Node bridge copies every response into a self-owned Uint8Array. Rust holds the texture cache and a reusable float32 premultiplied framebuffer, with explicit destroy/reset. Memory budgets: 8,388,608 **output framebuffer** pixels, separately 8192 maximum texture side and 33,554,432 pixels per atlas page (4096×4096 verified), 512 MiB total atlas cache, 6 million vertices per request and 256 MiB protocol frame cap. A full atlas may be larger than the output framebuffer. The 32-Mi-pixel page cap keeps one upload beneath the protocol message limit. Threads operate disjoint horizontal bands, with ordered triangle processing within each; no concurrent writes to the same pixel.
 
 No GPU code, source parser, IK or constraint duplication is included. A future wgpu backend can consume FrameInput and implement the same backend interface.
