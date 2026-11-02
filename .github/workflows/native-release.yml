@@ -1,13 +1,7 @@
 name: Riglyph native renderer CI and artifacts
 on:
   pull_request:
-    paths:
-      - "native/**"
-      - "packages/renderer-native/**"
-      - "packages/renderer-cpu/**"
-      - "packages/cli/**"
-      - "tests/native-**"
-      - ".github/workflows/native-release.yml"
+    types: [labeled]
   workflow_dispatch:
   release:
     types: [published]
@@ -18,6 +12,7 @@ permissions:
   contents: read
 jobs:
   native:
+    if: ${{ github.event_name != 'pull_request' || github.event.label.name == 'ci:run' }}
     name: Native ${{ matrix.platform }}
     strategy:
       fail-fast: false
