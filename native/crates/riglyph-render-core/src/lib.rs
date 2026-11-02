@@ -150,4 +150,40 @@ mod tests{
  #[test]fn reject_truncated_frame(){
   assert!(parse_request(&[b'R',b'G',b'P',b'1',1,0,2,0,0]).is_err());
  }
+ #[test]fn independent_frame_and_atlas_budgets(){
+  assert_eq!(bounded_texture(4096,4096),Ok(67_108_864));
+  assert_eq!(bounded_texture(8192,4096),Ok(134_217_728));
+  assert!(bounded_texture(8192,8192).is_err()); // avoid 256MiB+header overflow
+  assert!(bounded_texture(0,4096).is_err());
+  assert!(bounded_texture(8193,1).is_err());
+  assert_eq!(bounded_surface(800,600),Ok(480_000));
+  assert!(bounded_surface(4096,4096).is_err());
+ }
+ #[test]fn protocol_accepts_4096_rgba_atlas_without_changing_frame_limit(){
+  let pixels=vec![0u8;4096*4096*4];
+  let mut msg=Vec::with_capacity(28+pixels.len());
+  msg.extend_from_slice(MAGIC);
+  msg.extend_from_slice(&PROTOCOL_VERSION.to_le_bytes());
+  msg.extend_from_slice(&[1,0]);
+  msg.extend_from_slice(&3u32.to_le_bytes());
+  msg.extend_from_slice(&4096u32.to_le_bytes());
+  msg.extend_from_slice(&4096u32.to_le_bytes());
+  msg.extend_from_slice(&[0,0,0,0]);
+  msg.extend_from_slice(&(pixels.len() as u32).to_le_bytes());
+  msg.extend_from_slice(&pixels);
+  match parse_request(&msg).expect("full 4096 atlas upload must be legal"){
+   Request::Load(3,tex)=>{
+    let mut store=TextureStore::default();
+    store.load(3,tex).unwrap();
+    assert_eq!(store.textures.get(&3).unwrap().rgba.len(),67_108_864);
+   },
+   _=>panic!("unexpected request command"),
+  }
+ }
+ #[test]fn texture_cache_rejects_excess_and_bad_storage(){
+  let mut store=TextureStore::default();
+  assert!(store.load(1,Texture{width:4096,height:4096,rgba:vec![0;20],pma:false,wrap_u:0,wrap_v:0}).is_err());
+  assert!(store.load(1,Texture{width:9000,height:1,rgba:vec![0;9000*4],pma:false,wrap_u:0,wrap_v:0}).is_err());
+ }
+
 }
