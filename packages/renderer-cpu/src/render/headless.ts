@@ -113,6 +113,15 @@ export class HeadlessRenderEngine{
   const speed=request.playbackSpeed??1;finite(speed,'playbackSpeed');
   requireCondition(speed>0,'INVALID_TIMELINE','playbackSpeed must be positive');
   const actions=request.timeline??[];
+  // Validate every serialized event, including events after this particular
+  // frame; otherwise bad future actions would be silently accepted.
+  for(const action of actions){
+   requireCondition(Number.isFinite(action.atSec)&&action.atSec>=0&&Number.isSafeInteger(action.track)&&action.track>=0,
+    'INVALID_TIMELINE','Invalid render timeline event timestamp/track');
+   requireCondition(instance.clips.has(action.clipId),'ANIMATION_NOT_FOUND',`Unknown render timeline clip ${action.clipId}`);
+   requireCondition(action.mixDurationSec===undefined||Number.isFinite(action.mixDurationSec)&&action.mixDurationSec>=0,
+    'INVALID_TIMELINE','Invalid render transition duration');
+  }
   if(actions.length){
    const player=new AnimationPlayer(instance);player.timeScale=speed;
    const ordered=[...actions].sort((a,b)=>a.atSec-b.atSec||a.track-b.track);
