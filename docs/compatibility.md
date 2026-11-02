@@ -104,3 +104,7 @@ Spine source-format compatibility claim.
 The native shared library alone cannot animate arbitrary Universal IR or
 source-format skeleton files. Its C/Python clients provide pre-evaluated
 packet inputs. No proprietary source-runtime code is embedded.
+
+### Native atlas-size regression (A22)
+
+4096×4096 RGBA8 atlas pages are supported independently of the maximum 8,388,608-pixel **render framebuffer**. Per-page limit: 8192 per side and 33,554,432 pixels; total cache: 512 MiB. Native CI checks a full-size 4096×4096 binary upload, reuse across renders, and pixel agreement with the existing JS rasterizer.
