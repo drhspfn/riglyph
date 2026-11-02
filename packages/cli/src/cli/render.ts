@@ -67,7 +67,7 @@ export async function parseRenderOptions(argv:readonly string[]):Promise<RenderC
   }
   if(config['quality']!==undefined){
    const v=config['quality'];requireCondition(v!==null&&typeof v==='object'&&!Array.isArray(v),'INVALID_HEADER','quality must be object');
-   for(const key of Object.keys(v))requireCondition(['sampling','supersampling'].includes(key),'INVALID_HEADER',`Unknown quality field ${key}`);
+   for(const key of Object.keys(v))requireCondition(['sampling','supersampling','pngCompression'].includes(key),'INVALID_HEADER',`Unknown quality field ${key}`);
   }
   if(config['timeline']!==undefined){
    const v=config['timeline'];requireCondition(Array.isArray(v),'INVALID_TIMELINE','timeline must be an array');
@@ -157,6 +157,7 @@ export async function runRenderCli(file:string,argv:readonly string[]):Promise<v
  const quality:RenderQuality={...o.quality};
  if(o.sampling!==undefined)quality.sampling=o.sampling;
  if(o.supersampling!==undefined)quality.supersampling=o.supersampling;
+ requireCondition(!(o.alpha&&o.background),'INVALID_HEADER','--alpha conflicts with --background');
  const transparent=format==='mp4'?false:o.alpha??(!o.background);
  const background:RenderBackground=transparent?{mode:'transparent'}:{mode:'solid',color:o.background??'#000000'};
  const root=o.images??dirname(file),pages=await texturesFor(ir,root);
@@ -187,7 +188,7 @@ export async function runRenderCli(file:string,argv:readonly string[]):Promise<v
      'INVALID_HEADER','Unsafe frame prefix or padding');
     const result=await engine.renderSequence({...sequence,onFrame:async(frame,index)=>{
      const name=prefix+String(index).padStart(pad,'0')+'.png';
-     await writeFile(join(stage,name),encodePNG(width,height,frame.rgba,o.pngCompression??6),{flag:'wx'});
+     await writeFile(join(stage,name),encodePNG(width,height,frame.rgba,o.pngCompression??o.quality?.pngCompression??6),{flag:'wx'});
     }});
     const manifest={format:'riglyph-render-sequence-v1',formatOutput:'png-sequence',
      fps,width,height,...result,clipId:clip??null,skinId:o.skin??null,alpha:transparent,
