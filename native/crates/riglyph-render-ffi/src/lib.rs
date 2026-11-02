@@ -10,7 +10,7 @@ fn err(h:&mut RiglyphRenderer,result:Result<(),String>)->i32{match result{
  Ok(())=>{h.error.clear();0},Err(e)=>{h.error=e;-1}
 }}
 #[no_mangle]pub extern "C" fn rg_renderer_abi_version()->u32{ABI_VERSION}
-#[no_mangle]pub extern "C" fn rg_renderer_protocol_version()->u32{PROTOCOL_VERSION}
+#[no_mangle]pub extern "C" fn rg_renderer_protocol_version()->u32{u32::from(PROTOCOL_VERSION)}
 #[no_mangle]pub extern "C" fn rg_renderer_create(threads:u32)->*mut RiglyphRenderer{
  catch_unwind(||{
   if !(1..=16).contains(&threads){return std::ptr::null_mut();}
