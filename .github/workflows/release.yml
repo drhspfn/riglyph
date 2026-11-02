@@ -60,14 +60,21 @@ jobs:
               p.merge_commit_sha===sha);
             if (!accepted.length)
               return core.setFailed('Release commit must be the accepted merge/squash commit of a validated PR');
-            const runs = await github.paginate(github.rest.actions.listWorkflowRuns,{
-              owner,repo,workflow_id:'ci.yml',event:'pull_request',per_page:100
-            });
-            const verified = accepted.some(p=>runs.some(r=>
-              r.head_sha===p.head.sha &&
-              r.conclusion==='success' &&
-              r.event==='pull_request' &&
-              r.pull_requests?.some(q=>q.number===p.number)));
+            // GitHub clears workflow_run.pull_requests after a PR is merged.
+            // Scope the lookup to the exact merged PR head SHA rather than
+            // relying on mutable API association fields or a global first page.
+            let verified = false;
+            for (const p of accepted) {
+              const runs = await github.paginate(github.rest.actions.listWorkflowRuns,{
+                owner,repo,workflow_id:'ci.yml',event:'pull_request',
+                head_sha:p.head.sha,per_page:100
+              });
+              if (runs.some(r=>r.head_sha===p.head.sha &&
+                r.conclusion==='success' && r.event==='pull_request')) {
+                verified = true;
+                break;
+              }
+            }
             if (!verified)
               return core.setFailed('No successful label-triggered CI on the exact merged PR head; release blocked');
             // In particular, no duplicate main-branch CI is needed.
