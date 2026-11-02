@@ -60,7 +60,7 @@ function probeVideo(file:string,o:EncoderSettings,frameCount:number,alphaPixel:n
  const rate=stream.avg_frame_rate?.split('/').map(Number)??[],fps=(rate[0]??0)/(rate[1]??1);
  const frames=stream.nb_read_frames&&stream.nb_read_frames!=='N/A'?Number(stream.nb_read_frames):null;
  const duration=Number(j.format?.duration??stream.duration??NaN);
- const alpha=stream.tags?.alpha_mode==='1';
+ const alpha=Object.entries(stream.tags??{}).some(([key,value])=>key.toLowerCase()==='alpha_mode'&&value==='1');
  requireCondition(stream.codec_name===(o.format==='mp4'?'h264':'vp9'),'UNSUPPORTED_SEMANTIC_FEATURE','Unexpected output codec');
  requireCondition(stream.width===o.width&&stream.height===o.height,'UNSUPPORTED_SEMANTIC_FEATURE','Encoded resolution mismatch');
  requireCondition(Math.abs(fps-o.fps)<=1e-4,'UNSUPPORTED_SEMANTIC_FEATURE',`Encoded FPS mismatch ${fps} != ${o.fps}`);
