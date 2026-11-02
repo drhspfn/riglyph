@@ -89,3 +89,25 @@ test('canonical Riglyph animation packets render identically using headless JS a
 test('native explicitly requested with invalid binary must fail; no silent fallback',async()=>{
  await assert.rejects(()=>createNativeRenderer({binaryPath:join(tmpdir(),'no-native-executable')}));
 });
+
+// Regression: a 4096x4096 atlas is much larger than the output surface,
+// and must be uploaded/cached independently of framebuffer pixel budgets.
+test('native accepts full 4096x4096 atlas, then draws a small 16x16 frame',async()=>{
+ const side=4096,rgba=new Uint8Array(side*side*4);
+ rgba.set([234,91,47,255],0);
+ const large=new Map<string,RawTexture>([['p',{width:side,height:side,rgba,premultiplied:false,
+  wrapU:'clamp',wrapV:'clamp'}]]);
+ const quad:DrawPacket={...packet(),uvs:new Float32Array(tri.length),
+  light:[1,1,1,1],dark:null};
+ const config={packets:[quad],textures:large,viewport,
+  width:16,height:16,clear:[0,0,0,0] as [number,number,number,number],sampling:'nearest' as const};
+ const reference=rasterize(config.packets,large,viewport,16,16,config.clear,{sampling:'nearest'});
+ const native=await createNativeRenderer({binaryPath:binary,threads:2});
+ try{
+  const actual=await native.render(config);
+  const diff=maxDelta(reference,actual);
+  assert.ok(diff.max<=1,`4096 atlas JS/native mismatch: ${JSON.stringify(diff)}`);
+  assert.ok(actual.some((x,i)=>i%4===0&&x===234),'large cached atlas must produce colored pixels');
+  assert.deepEqual(await native.render(config),actual,'large texture must remain cached across frames');
+ }finally{await native.dispose();}
+});
