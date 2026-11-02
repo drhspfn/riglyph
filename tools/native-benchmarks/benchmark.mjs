@@ -10,9 +10,9 @@ import {spawnSync} from 'node:child_process';
 import {deserializeIR} from '@riglyph/core';
 import {SkeletonInstance} from '@riglyph/runtime';
 import {prepareDrawPackets,drawBounds} from '@riglyph/renderer-webgl2';
-import {rasterize} from '@riglyph/renderer-cpu';
+import {rasterize,HeadlessRenderEngine} from '@riglyph/renderer-cpu';
 import {createNativeRenderer} from '@riglyph/renderer-native';
-import {decodePNG,encodePNG} from '@riglyph/cli';
+import {decodePNG,encodePNG,encodeVideoFrames} from '@riglyph/cli';
 
 const ir=deserializeIR(await readFile('fixtures/minimal.json','utf8'));
 const rgba=decodePNG(await readFile('fixtures/synthetic-example.png'));
@@ -66,12 +66,51 @@ try{
   }
  }
  const measurements=Object.fromEntries(Object.entries(timedSamples).map(([name,data])=>[name,stats(data)]));
+ // Full output comparisons use identical frame schedules and include
+ // animation evaluation, camera prepass, native transfer, PNG/FFmpeg encoding.
+ const outputBase=resolve('test-output/native-benchmark');
+ await mkdir(join(outputBase,'js-png'),{recursive:true});
+ await mkdir(join(outputBase,'rust-png'),{recursive:true});
+ const engineSettings={ir,textures,width:WIDTH,height:HEIGHT,fps:10,
+  camera:{mode:'fit-scene',fit:'animation'},background:{mode:'solid',color:'#000000'},
+  quality:{sampling:'nearest',supersampling:1}};
+ const engineJs=new HeadlessRenderEngine(engineSettings);
+ const engineRust=new HeadlessRenderEngine({...engineSettings,rasterBackend:native4});
+ const capturePng=async(engine,label)=>{
+  const times=[];
+  const t0=performance.now();
+  await engine.renderSequence({clipId:'rotate90',startSec:0,endSec:.5,fps:10,
+   onFrame:async(frame,index)=>{
+    const x=performance.now();
+    await writeFile(join(outputBase,label+'-png',String(index).padStart(6,'0')+'.png'),
+     encodePNG(WIDTH,HEIGHT,frame.rgba,1));
+    times.push(performance.now()-x);
+   }});
+  return {totalMs:performance.now()-t0,encode:stats(times),frameCount:5};
+ };
+ const jsPng=await capturePng(engineJs,'js');
+ const rustPng=await capturePng(engineRust,'rust');
+ const captureVideo=async(engine,label)=>{
+  const t0=performance.now();
+  const file=join(outputBase,label+'.mp4');
+  const result=await encodeVideoFrames({format:'mp4',width:WIDTH,height:HEIGHT,fps:10,output:file,
+   crf:23,preset:'veryfast',overwrite:true},async consume=>{
+   const summary=await engine.renderSequence({clipId:'rotate90',startSec:0,endSec:.5,fps:10,
+    onFrame:async(frame)=>consume(frame.rgba)});
+   return summary.frameCount;
+  });
+  return {totalMs:performance.now()-t0,codec:result.codec,frames:result.frames};
+ };
+ const jsVideo=await captureVideo(engineJs,'js');
+ const rustVideo=await captureVideo(engineRust,'rust');
  const report={
   engine:'Riglyph 0.16.x',nativeVersion:'0.1.0',abiVersion:1,protocolVersion:1,
   platform:process.platform,arch:process.arch,node:process.version,
   resolution:[WIDTH,HEIGHT],fps:FPS,framesMeasured:REPS,warmupFrames:WARM,
   texturePages:1,scene:'self-authored minimal Universal IR',sampling:'nearest',
   perFrame:measurements,
+  pngSequence:{js:jsPng,rust:rustPng,speedup:jsPng.totalMs/rustPng.totalMs},
+  videoSequence:{js:jsVideo,rust:rustVideo,speedup:jsVideo.totalMs/rustVideo.totalMs},
   speedupEndToEnd:measurements.jsEndToEnd.medianMs/measurements.nativeEndToEnd.medianMs,
   peakRssBytes:maxRss,
   allocations:'heapUsed and RSS only; native allocator event counts not instrumented',
