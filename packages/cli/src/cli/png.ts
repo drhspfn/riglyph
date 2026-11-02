@@ -8,12 +8,13 @@ function chunk(type:string,data:Uint8Array):Buffer{
  const c=Buffer.alloc(12+data.length);c.writeUInt32BE(data.length,0);c.write(type,4,'ascii');Buffer.from(data).copy(c,8);
  c.writeUInt32BE(crc32(c.subarray(4,8+data.length)),8+data.length);return c;
 }
-export function encodePNG(width:number,height:number,rgba:Uint8Array):Buffer{
+export function encodePNG(width:number,height:number,rgba:Uint8Array,compression=6):Buffer{
+ requireCondition(Number.isInteger(compression)&&compression>=0&&compression<=9,'INVALID_HEADER','Invalid PNG compression');
  requireCondition(Number.isInteger(width)&&Number.isInteger(height)&&width>0&&height>0&&width*height<=16_777_216,'LIMIT_EXCEEDED','Invalid PNG dimensions');
  requireCondition(rgba.length===width*height*4,'INVALID_ATLAS','RGBA data length mismatch');
  const ihdr=Buffer.alloc(13);ihdr.writeUInt32BE(width,0);ihdr.writeUInt32BE(height,4);ihdr[8]=8;ihdr[9]=6;
  const rows=Buffer.alloc(height*(1+width*4));for(let y=0;y<height;y++)Buffer.from(rgba.subarray(y*width*4,(y+1)*width*4)).copy(rows,y*(1+width*4)+1);
- return Buffer.concat([Buffer.from(SIGN),chunk('IHDR',ihdr),chunk('IDAT',deflateSync(rows,{level:6})),chunk('IEND',new Uint8Array(0))]);
+ return Buffer.concat([Buffer.from(SIGN),chunk('IHDR',ihdr),chunk('IDAT',deflateSync(rows,{level:compression})),chunk('IEND',new Uint8Array(0))]);
 }
 /** PNG decoder for 8-bit RGBA, no interlace, PNG filters 0..4. Unsupported variants fail. */
 export function decodePNG(input:Uint8Array):{width:number;height:number;rgba:Uint8Array}{

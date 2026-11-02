@@ -8,7 +8,7 @@
 
 Convert supported source assets into a portable intermediate representation, then animate and render them through a common TypeScript runtime.
 
-[Get started](docs/getting-started.md) · [Web player](docs/web-player.md) · [React / Next.js](docs/frameworks.md) · [CLI](docs/cli.md) · [Compatibility](docs/compatibility.md) · [Contributing](CONTRIBUTING.md)
+[Get started](docs/getting-started.md) · [Web player](docs/web-player.md) · [React / Next.js](docs/frameworks.md) · [CLI](docs/cli.md) · [Headless rendering](docs/headless-rendering.md) · [Compatibility](docs/compatibility.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
@@ -106,3 +106,21 @@ This is a **pre-1.0**, evolving API. Unsupported binary versions, JSON exports a
 ## License
 
 [MIT](LICENSE) for the Riglyph source code. Third-party components retain their own licenses; see [third-party notices](THIRD_PARTY_NOTICES.md). No rights to input assets or third-party formats are granted.
+
+
+## Headless frame and video export (A21)
+
+Riglyph can evaluate a clip and render a full frame sequence with its own CPU
+renderer — **without browser, DOM or WebGL**. FFmpeg is optional for video:
+
+```sh
+npm run cli -- render fixtures/minimal.json --images fixtures --clip rotate90 --out-dir renders/frames --fps 30
+npm run cli -- render fixtures/minimal.json --images fixtures --clip rotate90 --format mp4 --background '#00FF00' --out renders/green.mp4
+npm run cli -- render fixtures/minimal.json --images fixtures --clip rotate90 --format webm --alpha --out renders/transparent.webm
+```
+
+The reusable `HeadlessRenderEngine` is exported by `@riglyph/renderer-cpu`.
+Output frames use precise index-derived timestamps, camera prepass and bounded
+per-frame rendering, keeping original IK/Path/deform/clipping behavior.
+See [Headless rendering](docs/headless-rendering.md), [FFmpeg video](docs/video-export.md),
+and the [minimal example](examples/headless-render/README.md).

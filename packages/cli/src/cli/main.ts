@@ -11,6 +11,7 @@ import {prepareDrawPackets,drawBounds} from '@riglyph/renderer-webgl2';
 import {rasterize} from '@riglyph/renderer-cpu';
 import {encodePNG,decodePNG} from './png.js';
 import {commitConvertedDirectory} from './transaction.js';
+import {runRenderCli,renderHelp} from './render.js';
 const packageVersion=JSON.parse(await readFile(new URL('../../package.json',import.meta.url),'utf8')) as {version:string};
 /** Explicit plugin list only: installed packages are trusted code, never loaded from a source header. */
 async function configuredRegistry():Promise<AdapterRegistry>{
@@ -44,7 +45,7 @@ const help=`Universal Skeleton Engine ${packageVersion.version} (Spine Binary 4.
   atlas <file.atlas> [--images dir] Parse atlas; optionally check declared PNG headers
   snapshot <ir.json> --images dir --out frame.png [--clip id] [--time sec] [--width 800] [--height 600]
                                      Rasterize real frame to PNG without GPU
-  frame <ir.json> [--clip id] [--time seconds] [--skin id]
+  render <ir.json> [--images dir] --clip id --out-dir dir [--format png-sequence|mp4|webm]\n                                     Browser-free CPU animation sequence/video export; render --help lists options\n  frame <ir.json> [--clip id] [--time seconds] [--skin id]
                                      Evaluate CPU world packets and report bounds
   --plugin <installed-package>      Explicitly register a module exporting importerPlugin and optional detector(s)
   --plugins-config <json>          Explicit plugin list (no auto-discovery)
@@ -70,6 +71,8 @@ async function main():Promise<void>{
  if(cmd==='--version'||cmd==='version'){process.stdout.write(packageVersion.version+'\n');return;}
  const registry=await configuredRegistry();
  if(cmd==='help'||cmd==='--help'||cmd==='-h'){process.stdout.write(help+'\n');return;}
+ if(cmd==='render'&&(file==='--help'||file==='-h')){process.stdout.write(renderHelp);return;}
+ if(cmd==='render'){requireCondition(!!file,'INVALID_HEADER','render requires IR path');await runRenderCli(file,process.argv.slice(4));return;}
  requireCondition(!!file,'INVALID_HEADER','Expected file path');
  if(cmd==='probe'){
   const bytes=await read(file);const identity=registry.detect(bytes,file);
