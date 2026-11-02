@@ -63,6 +63,37 @@ jobs:
         env:
           RIGLYPH_NATIVE_LIB: native/target/release/${{ matrix.lib }}
         run: python examples/native-renderer/c-consumer.py
+      - name: Install FFmpeg / ffprobe on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install FFmpeg / ffprobe on Windows
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --yes --no-progress
+      - name: Install FFmpeg / ffprobe on macOS
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - name: Native A21 full PNG, H264 and VP9-alpha video integration
+        env:
+          RIGLYPH_NATIVE_BIN: native/target/release/${{ matrix.exe }}
+        run: node scripts/native-export-test.mjs
+      - name: Matched JS/Rust 800x600 performance benchmark (Linux)
+        if: runner.os == 'Linux'
+        env:
+          RIGLYPH_NATIVE_BIN: native/target/release/${{ matrix.exe }}
+          BENCH_REPS: 12
+          BENCH_WARM: 5
+          BENCH_WIDTH: 800
+          BENCH_HEIGHT: 600
+        run: node tools/native-benchmarks/benchmark.mjs
+      - name: Save decoded RGBA/PNG, MP4, VP9, and benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: riglyph-native-output-${{ matrix.platform }}
+          path: |
+            test-output/native/
+            native/dist/native-benchmarks.json
+          if-no-files-found: warn
       - name: Bundle library, binary, header, license, version, hashes
         run: node scripts/native-package.mjs ${{ matrix.platform }} native/target/release/${{ matrix.exe }} native/target/release/${{ matrix.lib }}
       - name: Native package artifact
