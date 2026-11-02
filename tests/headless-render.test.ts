@@ -29,6 +29,7 @@ test('frame schedule is integer-index based, half-open unless endpoint requested
  assert.equal(countScheduledFrames(0,3,60),180);
  assert.equal(countScheduledFrames(0,1,3),3);
  assert.equal(countScheduledFrames(0,1,3,true),4);
+ assert.equal(countScheduledFrames(0,1.1,2,true),4);
  assert.equal(countScheduledFrames(.2,.7,4),2);
  assert.equal(countScheduledFrames(0,0,30,true),1);
  assert.throws(()=>countScheduledFrames(0,0,30));
@@ -41,6 +42,9 @@ test('sequence streams frames individually, respects offsets/loops and abort sig
  const result=await r.renderSequence({clipId:'rotate90',startSec:.2,endSec:.7,fps:4,
   onFrame:async f=>{samples.push(f.timeSec);}});
  assert.deepEqual(samples,[.2,.45]);assert.equal(result.frameCount,2);
+ const inclusive:number[]=[];
+ await r.renderSequence({clipId:'rotate90',startSec:0,endSec:1.1,fps:2,includeEnd:true,onFrame:f=>{inclusive.push(f.timeSec);}});
+ assert.deepEqual(inclusive,[0,.5,1,1.1]);
  const aborted=new AbortController();aborted.abort();
  await assert.rejects(()=>r.renderSequence({clipId:'rotate90',startSec:0,endSec:1,fps:10,
   signal:aborted.signal,onFrame:()=>{throw Error('must not render');}}),/cancelled/);
