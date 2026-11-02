@@ -1,6 +1,6 @@
 {
   "name": "@riglyph/core",
-  "version": "0.16.0",
+  "version": "0.16.1",
   "type": "module",
   "license": "MIT",
   "description": "Riglyph IR schema, validators, error contracts and shared types",
