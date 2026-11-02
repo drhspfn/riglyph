@@ -17,6 +17,8 @@ fn err(h:&mut RiglyphRenderer,result:Result<(),String>)->i32{match result{
   Box::into_raw(Box::new(RiglyphRenderer{inner:Renderer::new(threads as usize),frame:Vec::new(),error:String::new()}))
  }).unwrap_or(std::ptr::null_mut())
 }
+/// # Safety
+/// Caller must provide a unique valid live renderer pointer, and rgba must point to at least len readable bytes for the duration of this call. This call copies texture bytes and does not retain the caller pointer.
 #[no_mangle]pub unsafe extern "C" fn rg_renderer_load_texture(ptr:*mut RiglyphRenderer,id:u32,w:u32,h:u32,
  pixels:*const u8,len:usize,pma:u8,wrap_u:u8,wrap_v:u8)->i32{
  guard(||{
@@ -33,6 +35,8 @@ fn err(h:&mut RiglyphRenderer,result:Result<(),String>)->i32{match result{
   err(renderer,result)
  })
 }
+/// # Safety
+/// Renderer pointer must refer to a live unique handle and binary_packet must contain at least packet_len readable bytes for this call. Do not concurrently invoke mutable functions on the same handle.
 #[no_mangle]pub unsafe extern "C" fn rg_renderer_render(ptr:*mut RiglyphRenderer,packet:*const u8,len:usize)->i32{
  guard(||{
   // SAFETY: input is copied into Rust-owned parsed data during this call.
@@ -50,9 +54,13 @@ fn err(h:&mut RiglyphRenderer,result:Result<(),String>)->i32{match result{
   err(renderer,result)
  })
 }
+/// # Safety
+/// Renderer pointer must refer to a live renderer or be null. A valid pointer must not be concurrently destroyed or mutably accessed.
 #[no_mangle]pub unsafe extern "C" fn rg_renderer_frame_size(ptr:*const RiglyphRenderer)->usize{
  catch_unwind(AssertUnwindSafe(||unsafe{ptr.as_ref()}.map_or(0,|h|h.frame.len()))).unwrap_or(0)
 }
+/// # Safety
+/// Renderer pointer must be a live handle; target must refer to at least capacity writable bytes, where capacity is greater than or equal to the current frame size. The source renderer must not be modified concurrently.
 #[no_mangle]pub unsafe extern "C" fn rg_renderer_get_frame(ptr:*const RiglyphRenderer,to:*mut u8,capacity:usize)->usize{
  catch_unwind(AssertUnwindSafe(||{
   let Some(renderer)=(unsafe{ptr.as_ref()})else{return 0};
@@ -63,6 +71,8 @@ fn err(h:&mut RiglyphRenderer,result:Result<(),String>)->i32{match result{
   renderer.frame.len()
  })).unwrap_or(0)
 }
+/// # Safety
+/// Renderer pointer must be a live handle; when target is non-null and capacity is sufficient, target must be writable for capacity bytes. Caller owns destination storage.
 #[no_mangle]pub unsafe extern "C" fn rg_renderer_last_error(ptr:*const RiglyphRenderer,to:*mut i8,capacity:usize)->usize{
  catch_unwind(AssertUnwindSafe(||{
   let Some(renderer)=(unsafe{ptr.as_ref()})else{return 0};
@@ -72,11 +82,15 @@ fn err(h:&mut RiglyphRenderer,result:Result<(),String>)->i32{match result{
   needed
  })).unwrap_or(0)
 }
+/// # Safety
+/// Renderer pointer must refer to a uniquely borrowed live handle and not be used concurrently.
 #[no_mangle]pub unsafe extern "C" fn rg_renderer_reset(ptr:*mut RiglyphRenderer)->i32{
  guard(||{let Some(renderer)=(unsafe{ptr.as_mut()})else{return -2};
   renderer.inner.reset();renderer.frame.clear();renderer.error.clear();0
  })
 }
+/// # Safety
+/// Renderer pointer must be null or the exact live pointer returned by create; destroy it only once and never use it again.
 #[no_mangle]pub unsafe extern "C" fn rg_renderer_destroy(ptr:*mut RiglyphRenderer){
  if ptr.is_null(){return;}
  let _=catch_unwind(AssertUnwindSafe(||{unsafe{drop(Box::from_raw(ptr))};}));
