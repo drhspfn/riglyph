@@ -1,6 +1,6 @@
 {
   "name": "@riglyph/renderer-webgl2",
-  "version": "0.15.1",
+  "version": "0.16.0",
   "type": "module",
   "license": "MIT",
   "description": "WebGL2 renderer for Riglyph draw packets and skeletal scenes",
@@ -22,8 +22,8 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@riglyph/core": "0.15.1",
-    "@riglyph/runtime": "0.15.1"
+    "@riglyph/core": "0.16.0",
+    "@riglyph/runtime": "0.16.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
