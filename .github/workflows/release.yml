@@ -60,16 +60,29 @@ jobs:
               p.merge_commit_sha===sha);
             if (!accepted.length)
               return core.setFailed('Release commit must be the accepted merge/squash commit of a validated PR');
-            const runs = await github.paginate(github.rest.actions.listWorkflowRuns,{
-              owner,repo,workflow_id:'ci.yml',event:'pull_request',per_page:100
-            });
-            const verified = accepted.some(p=>runs.some(r=>
-              r.head_sha===p.head.sha &&
-              r.conclusion==='success' &&
-              r.event==='pull_request' &&
-              r.pull_requests?.some(q=>q.number===p.number)));
+            // Query the tested PR HEAD directly. A workflow listing without
+            // head_sha (or requiring the optional pull_requests field) can
+            // miss a perfectly valid labeled PR check.
+            let verified = false;
+            for (const pr of accepted) {
+              const prsRuns = await github.paginate(github.rest.actions.listWorkflowRuns,{
+                owner,repo,workflow_id:'ci.yml',
+                head_sha:pr.head.sha,
+                event:'pull_request',
+                per_page:100
+              });
+              const matches = prsRuns.filter(r=>
+                r.head_sha===pr.head.sha &&
+                r.event==='pull_request' &&
+                r.conclusion==='success');
+              if (matches.length) {
+                core.info(`Verified merged PR #${pr.number} head ${pr.head.sha} via CI runs: ${matches.map(r=>r.id).join(', ')}`);
+                verified = true;
+                break;
+              }
+            }
             if (!verified)
-              return core.setFailed('No successful label-triggered CI on the exact merged PR head; release blocked');
+              return core.setFailed('No green ci.yml pull_request run for the merged PR exact head SHA');
             // In particular, no duplicate main-branch CI is needed.
       - uses: actions/checkout@v4
         with:
