@@ -2,6 +2,12 @@ name: Riglyph npm release (Trusted Publishing / OIDC)
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing published GitHub Release tag for a controlled retry'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -12,7 +18,7 @@ concurrency:
 
 jobs:
   publish:
-    if: ${{ !github.event.release.prerelease && !github.event.release.draft }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (!github.event.release.prerelease && !github.event.release.draft) }}
     runs-on: ubuntu-latest
     environment: npm-release
     permissions:
@@ -24,7 +30,12 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const tag = context.payload.release?.tag_name;
+            const manual = context.eventName === 'workflow_dispatch';
+            const tag = manual ? context.payload.inputs?.release_tag : context.payload.release?.tag_name;
+            if (manual && context.ref !== 'refs/heads/main') return core.setFailed('Manual recovery must run from main');
+            const release = await github.rest.repos.getReleaseByTag({owner:context.repo.owner,repo:context.repo.repo,tag});
+            if (release.data.draft || release.data.prerelease || !release.data.published_at)
+              return core.setFailed('Only an existing published stable release can be deployed');
             if (!/^v?(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(tag ?? ''))
               return core.setFailed('Release tag must be a valid vSemVer tag');
             const {owner,repo} = context.repo;
@@ -35,15 +46,23 @@ jobs:
               if (annotated.data.object.type !== 'commit') return core.setFailed('Tag must resolve to a commit');
               sha = annotated.data.object.sha;
             }
-            if (sha !== context.sha) return core.setFailed('Release checkout SHA does not match tag commit');
+            if (!manual && sha !== context.sha) return core.setFailed('Release checkout SHA does not match tag commit');
             const comparison = await github.rest.repos.compareCommits({owner,repo,base:sha,head:'main'});
             if (!['ahead','identical'].includes(comparison.data.status))
               return core.setFailed('Release commit is not reachable from main');
             const runs = await github.paginate(github.rest.actions.listWorkflowRuns,{
               owner,repo,workflow_id:'ci.yml',head_sha:sha,event:'push',per_page:100
             });
-            const passed = runs.some(r => r.head_branch === tag && r.head_sha === sha && r.conclusion === 'success');
-            if (!passed) return core.setFailed('Successful tag-push CI on release commit is required');
+            const tagPassed = runs.some(r => r.head_branch === tag && r.head_sha === sha && r.conclusion === 'success');
+            const mainPassed = runs.some(r => r.head_branch === 'main' && r.head_sha === sha && r.conclusion === 'success');
+            if (!tagPassed && !mainPassed) return core.setFailed('Successful CI on exact release SHA (tag or main) is required');
+            if (manual) {
+              const currentRuns = await github.paginate(github.rest.actions.listWorkflowRuns,{
+                owner,repo,workflow_id:'ci.yml',head_sha:context.sha,event:'push',per_page:100
+              });
+              if (!currentRuns.some(r => r.head_sha === context.sha && r.head_branch === 'main' && r.conclusion === 'success'))
+                return core.setFailed('Manual recovery also requires green CI on current main');
+            }
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -57,7 +76,7 @@ jobs:
       - run: node --version && npm --version
       - name: Verify tag matches all package versions
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.event.release.tag_name }}
         run: |
           node --input-type=module -e '
             import fs from "node:fs";
@@ -75,6 +94,8 @@ jobs:
         run: |
           node --input-type=module -e "import fs from 'node:fs';const p=JSON.parse(fs.readFileSync('packages/core/package.json'));if(p.repository.url.includes('/OWNER/'))process.exit(1)"
       - name: Check all eight npm versions are unpublished
+        env:
+          RIGLYPH_RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.event.release.tag_name }}
         run: node scripts/check-npm-prepublish.mjs
       - name: Save prepublish evidence
         uses: actions/upload-artifact@v4
@@ -104,6 +125,7 @@ jobs:
         env:
           NPM_PUBLISH_MODE: ${{ vars.NPM_PUBLISH_MODE }}
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RIGLYPH_RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.event.release.tag_name }}
         run: node scripts/publish-approved.mjs
       # Configure Environment 'npm-release' variable NPM_PUBLISH_MODE=oidc|token.
       # For token mode also configure an Environment secret NPM_TOKEN.
