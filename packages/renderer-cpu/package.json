@@ -1,6 +1,6 @@
 {
   "name": "@riglyph/renderer-cpu",
-  "version": "0.16.0",
+  "version": "0.16.1",
   "type": "module",
   "license": "MIT",
   "description": "CPU software renderer and snapshot tools for Riglyph scenes",
@@ -22,9 +22,9 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@riglyph/core": "0.16.0",
-    "@riglyph/renderer-webgl2": "0.16.0",
-    "@riglyph/runtime": "0.16.0"
+    "@riglyph/core": "0.16.1",
+    "@riglyph/renderer-webgl2": "0.16.1",
+    "@riglyph/runtime": "0.16.1"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
