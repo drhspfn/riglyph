@@ -18,7 +18,7 @@ Output is a directory of independently decodable, correctly ordered RGBA PNGs (`
 
 ### Exact time semantics
 
-For every output frame index `i`, the animation is independently sampled at `startSec + i / fps`. The default interval is **half-open** `[startSec,endSec)` — 3 seconds at 60 FPS gives exactly 180 frames, and the pose at exactly 3.0 is not silently appended. `--include-end` explicitly adds the matching end sample when the endpoint falls on the frame grid. An empty half-open interval is rejected. A timestamp remains independent of the preceding render; clip loops are evaluated from absolute time.
+For every output frame index `i`, the animation is independently sampled at `startSec + i / fps`. The default interval is **half-open** `[startSec,endSec)` — 3 seconds at 60 FPS gives exactly 180 frames, and the pose at exactly 3.0 is not silently appended. `--include-end` explicitly appends the pose at `endSec`, including when the endpoint is off the FPS grid (the final appended sample is therefore an explicit exception to the usual `start + i/fps` rule). An empty half-open interval is rejected. A timestamp remains independent of the preceding render; clip loops are evaluated from absolute time.
 
 `--playback-speed` scales source animation time. `--loop` repeats the clip; `--loop-count` derives the range from its duration when `--end` is omitted. Use `--start`/`--end` to select custom ranges. `--fps` accepts finite fractional values. The renderer computes its maximum frame count **before** starting output; the default limit is 200,000 frames.
 
