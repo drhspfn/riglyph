@@ -147,7 +147,9 @@ export async function runRenderCli(file:string,argv:readonly string[]):Promise<v
  const signal=new AbortController();
  const abort=()=>signal.abort();
  process.once('SIGINT',abort);process.once('SIGTERM',abort);
+ const startedAt=Date.now();
  const progressMode=o.progress??'text',notify=(event:Record<string,unknown>)=>{
+  event={...event,elapsedMs:Date.now()-startedAt};
   if(progressMode==='none')return;
   process.stderr.write(progressMode==='json'?JSON.stringify(event)+'\n':
    `[${event['phase']}] ${event['frame']??0}/${event['totalFrames']??0}\r`);
@@ -173,6 +175,7 @@ export async function runRenderCli(file:string,argv:readonly string[]):Promise<v
      fps,width,height,...result,clipId:clip??null,skinId:o.skin??null,alpha:transparent,
      camera,quality,background,source:ir.source,status:'completed',framePrefix:prefix,padding:pad};
     await writeFile(join(stage,'render-manifest.json'),JSON.stringify(manifest,null,2)+'\n');
+    notify({event:'render-progress',phase:'finalization',frame:result.frameCount,totalFrames:result.frameCount});
     await commitConvertedDirectory(stage,destination,o.overwrite??false);
     notify({event:'render-progress',phase:'success',frame:result.frameCount,totalFrames:result.frameCount});
     process.stdout.write(JSON.stringify({output:destination,...manifest})+'\n');
@@ -188,11 +191,14 @@ export async function runRenderCli(file:string,argv:readonly string[]):Promise<v
     output:o.out!,overwrite:o.overwrite??false,signal:signal.signal},async consume=>{
     const result=await engine.renderSequence({...sequence,onFrame:async(frame,index,total)=>{
      await consume(frame.rgba);resultFrameCount=total;
+     notify({event:'render-progress',phase:'encoding',frame:index+1,totalFrames:total,renderedTimeSec:frame.timeSec});
     }});
     return result.frameCount;
    });
+   notify({event:'render-progress',phase:'finalization',frame:resultFrameCount,totalFrames:resultFrameCount});
    notify({event:'render-progress',phase:'success',frame:resultFrameCount,totalFrames:resultFrameCount});
    process.stdout.write(JSON.stringify({output:resolve(o.out!),format,frameCount:resultFrameCount,probe:output})+'\n');
   }
- }finally{process.removeListener('SIGINT',abort);process.removeListener('SIGTERM',abort);}
+ }catch(error){notify({event:'render-progress',phase:'failure',message:error instanceof Error?error.message:String(error)});throw error;}
+ finally{process.removeListener('SIGINT',abort);process.removeListener('SIGTERM',abort);}
 }
