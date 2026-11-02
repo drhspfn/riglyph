@@ -34,3 +34,17 @@ PNG sequences default to transparent alpha and work without FFmpeg; video
 requires the requested encoder and ffprobe. Output settings, camera modes,
 frame numbering, cancel/overwrite and cross-platform examples are documented
 in [headless rendering](headless-rendering.md) and [video export](video-export.md).
+
+
+## A22 optional Rust native backend
+
+The existing `render` command accepts `--backend js|native-cpu|auto`,
+`--native-threads 1..16`, and `--native-path <executable>`.
+`js` (default) preserves the existing CPU rasterizer; `native-cpu` fails
+explicitly if the compatible binary is missing or cannot initialize;
+`auto` logs a fallback to JS when native is unavailable.
+
+The native executable is selected by `RIGLYPH_NATIVE_BIN` or the explicit
+path and processes draw packets emitted by TypeScript. All existing A21 PNG,
+MP4/WebM, transparency, camera, FPS, playback and abort controls remain.
+See [native renderer](native-renderer.md).
