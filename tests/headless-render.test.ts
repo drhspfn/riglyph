@@ -114,3 +114,19 @@ test('CLI writes actual PNG frames and manifest; existing destination is protect
   assert.equal(c.status,0,c.stderr);
  }finally{await rm(root,{recursive:true,force:true});}
 });
+
+test('bounded-memory sequence renders 180 frames without accumulating RGBA arrays',async()=>{
+ const r=engine({width:64,height:64,fps:60});
+ const first=process.memoryUsage().rss;
+ let peak=first,count=0;
+ await r.renderSequence({clipId:'rotate90',startSec:0,endSec:3,fps:60,
+  onFrame:(frame,index,total)=>{
+   assert.equal(frame.rgba.length,64*64*4);
+   assert.equal(index,count++);assert.equal(total,180);
+   peak=Math.max(peak,process.memoryUsage().rss);
+  }});
+ assert.equal(count,180);
+ const growth=peak-first;
+ console.log(`A21_MEMORY_BEHAVIOR frames=180 frameBytes=16384 startRss=${first} peakRss=${peak} deltaBytes=${growth}`);
+ assert.ok(growth<128*1024*1024,`Unexpected RSS growth ${growth} across 180 frames`);
+});
