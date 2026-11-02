@@ -19,6 +19,6 @@ Backend choices: js (existing CPU), native-cpu (explicit errors if unavailable),
 
 ## Scope and limitations
 
-Native v0.1.0 / C ABI v1 / packet protocol v1. Target release label v0.16.1, but version bump and publishing require review. Rust handles only rasterization; C/Python clients must provide draw packets themselves. The current Rust backend enforces 8,388,608 pixels per frame and 512 MiB cached textures. CPU tiles preserve packet order; optional wgpu could be introduced in a later release, but this PR contains no fake GPU backend.
+Native v0.1.0 / C ABI v1 / packet protocol v1. Target release label v0.16.1, but version bump and publishing require review. Rust handles only rasterization; C/Python clients must provide draw packets themselves. The Rust backend enforces **8,388,608 pixels per output framebuffer**, but atlas textures use a separate budget: up to **8192 pixels per side, 33,554,432 pixels per atlas page** (including ordinary 4096×4096 pages), with **512 MiB total cached RGBA textures**. Framebuffer resolution limits never apply to texture uploads. CPU tiles preserve packet order; optional wgpu could be introduced in a later release, but this PR contains no fake GPU backend.
 
 See native-renderer-architecture.md, native-renderer-ffi.md, native-renderer-performance.md and examples/native-renderer/.
