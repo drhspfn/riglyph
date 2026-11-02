@@ -27,9 +27,10 @@ fn err(h:&mut RiglyphRenderer,result:Result<(),String>)->i32{match result{
   let Some(expected)=(w as usize).checked_mul(h as usize).and_then(|v|v.checked_mul(4))else{return -2};
   if expected!=len||len==0{return -2;}
   let bytes=unsafe{std::slice::from_raw_parts(pixels,len)}.to_vec();
-  err(renderer,renderer.inner.textures.load(id,Texture{
+  let result=renderer.inner.textures.load(id,Texture{
    width:w as usize,height:h as usize,rgba:bytes,pma:pma==1,wrap_u,wrap_v,
-  }))
+  });
+  err(renderer,result)
  })
 }
 #[no_mangle]pub unsafe extern "C" fn rg_renderer_render(ptr:*mut RiglyphRenderer,packet:*const u8,len:usize)->i32{
