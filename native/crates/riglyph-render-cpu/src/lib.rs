@@ -21,7 +21,7 @@ impl Renderer {
   let start=Instant::now();let width=input.width;
   self.framebuffer.resize(pixels*4,0.);
   let clear=&input.clear;
-  for px in self.framebuffer.chunks_exact_mut(4){
+  for px in self.framebuffer.as_chunks_mut::<4>().0{
    px[0]=(clear[0]*clear[3]) as f32;px[1]=(clear[1]*clear[3]) as f32;
    px[2]=(clear[2]*clear[3]) as f32;px[3]=clear[3] as f32;
   }
@@ -42,7 +42,7 @@ impl Renderer {
    }
   });
   let mut rgba=vec![0u8;pixels*4];
-  for (p,px) in self.framebuffer.chunks_exact(4).enumerate(){
+  for (p,px) in self.framebuffer.as_chunks::<4>().0.iter().enumerate(){
    let a=px[3] as f64;
    for c in 0..3{
     rgba[p*4+c]=round_byte(if a>0.{(px[c] as f64/a).clamp(0.,1.)}else{0.});
@@ -84,7 +84,7 @@ fn shade_band(buffer:&mut [f32],frame:&FrameInput,textures:&std::collections::Ha
  let [left,bottom,vw,vh]=frame.view;
  for packet in &frame.packets{
   let tex=&textures[&packet.texture_id];
-  for triangle in packet.vertices.chunks_exact(3){
+  for triangle in packet.vertices.as_chunks::<3>().0{
    triangles+=1;
    let x0=(triangle[0].x-left)/vw*width as f64;
    let y0=height as f64-(triangle[0].y-bottom)/vh*height as f64;
