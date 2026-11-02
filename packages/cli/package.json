@@ -32,7 +32,8 @@
     "@riglyph/renderer-webgl2": "0.16.0",
     "@riglyph/renderer-cpu": "0.16.0",
     "@riglyph/importer-sdk": "0.16.0",
-    "@riglyph/importer-spine-4.1": "0.16.0"
+    "@riglyph/importer-spine-4.1": "0.16.0",
+    "@riglyph/renderer-native": "0.16.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
