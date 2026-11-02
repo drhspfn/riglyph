@@ -87,7 +87,7 @@ pub fn parse_request(data:&[u8])->Result<Request,String>{
      return Err("invalid tint".into());
     }
     let n=r.u32()? as usize;
-    if n%3!=0||n>MAX_VERTICES||vertices_total.checked_add(n).ok_or("vertex overflow")?>MAX_VERTICES{
+    if !n.is_multiple_of(3)||n>MAX_VERTICES||vertices_total.checked_add(n).ok_or("vertex overflow")?>MAX_VERTICES{
      return Err("invalid draw packet vertex count".into());
     }
     vertices_total+=n;
