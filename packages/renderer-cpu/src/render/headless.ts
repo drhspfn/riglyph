@@ -22,13 +22,17 @@ export type CameraSettings={
 export type RenderQuality={sampling?:TextureSampling;supersampling?:1|2|4;pngCompression?:number};
 export type RenderBackground={mode:'transparent'|'solid';color?:string};
 export type TimelineAction={atSec:number;track:number;clipId:string;loop?:boolean;mixDurationSec?:number};
+/** Pluggable raster accelerator. Geometry, skins and camera remain in TS. */
+export type RasterBackend={render:(input:{packets:readonly DrawPacket[];textures:ReadonlyMap<string,RawTexture>;
+ viewport:Viewport;width:number;height:number;clear:[number,number,number,number];
+ sampling:TextureSampling;signal?:AbortSignal})=>Promise<Uint8Array>};
 export type HeadlessOptions={
  ir:IRDocument;textures:ReadonlyMap<string,RawTexture>;
  width:number;height:number;fps?:number;
  camera?:CameraSettings;background?:RenderBackground;quality?:RenderQuality;
- maxFrames?:number;maxBytes?:number;
+ maxFrames?:number;maxBytes?:number;rasterBackend?:RasterBackend;
 };
-export type FrameRequest={timeSec:number;clipId?:string;skinId?:string|null;loop?:boolean;
+export type FrameRequest={timeSec:number;clipId?:string;skinId?:string|null;loop?:boolean;signal?:AbortSignal;
  playbackSpeed?:number;timeline?:readonly TimelineAction[];cameraViewport?:Viewport};
 export type RenderFrame={timeSec:number;width:number;height:number;rgba:Uint8Array;
  viewport:Viewport;bounds:RenderBounds|null;packetCount:number};
@@ -69,7 +73,7 @@ export function fitRenderBounds(b:RenderBounds|null,width:number,height:number,c
  const w=unit*width,h=unit*height,cx=bounds[0]+bounds[2]/2+(camera.offsetX??0),cy=bounds[1]+bounds[3]/2+(camera.offsetY??0);
  return {left:cx-w/2,bottom:cy-h/2,width:w,height:h};
 }
-function downsample(input:Uint8ClampedArray,w:number,h:number,ss:number):Uint8Array{
+function downsample(input:Uint8Array|Uint8ClampedArray,w:number,h:number,ss:number):Uint8Array{
  if(ss===1)return Uint8Array.from(input);
  const out=new Uint8Array((w/ss)*(h/ss)*4),targetW=w/ss;
  for(let y=0;y<h/ss;y++)for(let x=0;x<targetW;x++){
@@ -174,7 +178,12 @@ export class HeadlessRenderEngine{
   const view=this.viewport(instance,packets,request.cameraViewport);
   const ss=this.quality.supersampling??1;
   const clear=this.background.mode==='solid'?parseRGB(this.background.color??'#000000'):[0,0,0,0] as [number,number,number,number];
-  const pixels=rasterize(packets,this.options.textures,view,this.width*ss,this.height*ss,clear,{sampling:this.quality.sampling??'nearest'});
+  const sampling=this.quality.sampling??'nearest';
+  const pixels=this.options.rasterBackend?
+   await this.options.rasterBackend.render({
+    packets,textures:this.options.textures,viewport:view,width:this.width*ss,height:this.height*ss,clear,sampling,
+    ...(request.signal?{signal:request.signal}:{})
+   }):rasterize(packets,this.options.textures,view,this.width*ss,this.height*ss,clear,{sampling});
   return {timeSec:request.timeSec,width:this.width,height:this.height,rgba:downsample(pixels,this.width*ss,this.height*ss,ss),viewport:view,bounds:this.bounds(packets),packetCount:packets.length};
  }
  async renderSequence(args:SequenceOptions):Promise<{frameCount:number;startSec:number;endSec:number}>{
