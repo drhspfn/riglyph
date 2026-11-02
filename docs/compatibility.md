@@ -72,3 +72,20 @@ reference corpus.
   `referenceScope` is `BOUNDED_SYNTHETIC_CASES` even if
   `fullyEvaluable=true`. An active unsupported feature remains reported in
   `unsupported` and forces `fullyEvaluable=false`.
+
+
+## A21 headless rendering profile
+
+| Output | Support | Verification |
+|---|---|---|
+| PNG sequence RGBA | Browser-free CPU | independent frame writes, PNG decoder and manifest regression |
+| MP4/H.264 YUV420P | Optional FFmpeg libx264 | actual ffprobe codec/FPS/frame count/duration, decoded sample frame in CI |
+| WebM/VP9 alpha | Optional FFmpeg libvpx-vp9 | alpha metadata plus libvpx decoder RGBA sample check in CI |
+| Camera | fit-scene, fit-selection, fixed, follow | deterministic synthetic tests; stable animation sampled prepass |
+| Runtime features | Universal IR, IK, Path, deform, clipping, tint/blending | reuses existing runtime/CPU rendering; previous test suite retained |
+
+This does **not** extend the recognized input format beyond Spine Binary 4.1.23.
+A fit-scene animation camera envelope samples requested output frames; it is
+not an exact continuous-time extremum. WebM alpha requires compatible players
+and decoders. FFmpeg is not bundled and no audio is muxed. Video requires even
+dimensions for 4:2:0 conversion.
