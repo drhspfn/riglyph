@@ -47,7 +47,7 @@ test('VP9 WebM retains alpha metadata AND a decoded transparent pixel',async()=>
  const output=run(['--format','webm','--alpha','--crf','28','--preset','good','--out',file,'--overwrite','--ffmpeg-path',ffmpeg]);
  assert.equal(output.status,0,output.stderr);
  const stream=probe(file).streams[0]!;
- assert.equal(stream.codec_name,'vp9');assert.equal(stream.tags?.alpha_mode,'1');
+ assert.equal(stream.codec_name,'vp9');assert.ok(Object.entries(stream.tags??{}).some(([key,value])=>key.toLowerCase()==='alpha_mode'&&value==='1'));
  assert.equal(Number(stream.nb_read_frames),4);
  const decoded=spawnSync(ffmpeg,['-v','error','-c:v','libvpx-vp9','-i',file,
   '-frames:v','1','-pix_fmt','rgba','-f','rawvideo','pipe:1'],{timeout:30000,maxBuffer:64*64*4+8192});
