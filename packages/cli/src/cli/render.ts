@@ -20,7 +20,7 @@ export type RenderCliConfig={
  pngCompression?:number;camera?:CameraSettings;quality?:RenderQuality;
  cameraFit?:'start'|'animation'|'frame';cameraScale?:number;cameraPadding?:number;
  cameraX?:number;cameraY?:number;cameraTarget?:string;cameraSlot?:string;
- crf?:number;preset?:string;bitrate?:string;ffmpegPath?:string;ffprobePath?:string;
+ crf?:number;preset?:string;bitrate?:string;ffmpegPath?:string;ffprobePath?:string;ffmpegTimeoutMs?:number;
  overwrite?:boolean;progress?:'json'|'text'|'none';
  playbackSpeed?:number;loop?:boolean;loopCount?:number;includeEnd?:boolean;
  timeline?:TimelineAction[];maxFrames?:number;maxBytes?:number;prefix?:string;pad?:number;
@@ -34,11 +34,11 @@ const properties:Record<string,Key>={
  '--camera-scale':'cameraScale','--camera-padding':'cameraPadding','--camera-x':'cameraX',
  '--camera-y':'cameraY','--camera-target':'cameraTarget','--camera-slot':'cameraSlot',
  '--crf':'crf','--preset':'preset','--bitrate':'bitrate','--ffmpeg-path':'ffmpegPath',
- '--ffprobe-path':'ffprobePath','--progress':'progress','--playback-speed':'playbackSpeed',
+ '--ffprobe-path':'ffprobePath','--ffmpeg-timeout-ms':'ffmpegTimeoutMs','--progress':'progress','--playback-speed':'playbackSpeed',
  '--loop-count':'loopCount','--max-frames':'maxFrames','--max-bytes':'maxBytes',
  '--prefix':'prefix','--pad':'pad'};
 const numeric=new Set<Key>(['start','end','fps','width','height','supersampling','pngCompression','crf',
- 'cameraScale','cameraPadding','cameraX','cameraY','playbackSpeed','loopCount','maxFrames','maxBytes','pad']);
+ 'cameraScale','cameraPadding','cameraX','cameraY','playbackSpeed','loopCount','maxFrames','maxBytes','pad','ffmpegTimeoutMs']);
 const bools:Record<string,Key>={'--overwrite':'overwrite','--alpha':'alpha','--loop':'loop','--include-end':'includeEnd'};
 function setKey(o:Record<string,unknown>,key:Key,value:unknown):void{o[key]=value;}
 export async function parseRenderOptions(argv:readonly string[]):Promise<RenderCliConfig>{
@@ -91,7 +91,7 @@ export const renderHelp=`render <ir.json> [options] — CPU image sequence or FF
  --camera fit-scene|fit-selection|fixed|follow --camera-fit start|frame|animation
  --camera-padding <number> --camera-scale <number> --camera-x <number> --camera-y <number>
  --camera-target <bone> --camera-slot <slot> --crf <n> --preset <name> --bitrate <rate>
- --ffmpeg-path <executable> --ffprobe-path <executable>
+ --ffmpeg-path <executable> --ffprobe-path <executable> --ffmpeg-timeout-ms <ms>
  --prefix frame_ --pad 6 --max-frames <n> --max-bytes <n> --include-end
  --overwrite --progress json|text|none --config <json>
  All timestamps: start + frameIndex/fps, default half-open [start,end).
@@ -206,6 +206,7 @@ export async function runRenderCli(file:string,argv:readonly string[]):Promise<v
     ...(o.background?{background:o.background}:{}),...(o.crf!==undefined?{crf:o.crf}:{}),
     ...(o.preset?{preset:o.preset}:{}),...(o.bitrate?{bitrate:o.bitrate}:{}),
     ...(o.ffmpegPath?{ffmpegPath:o.ffmpegPath}:{}),...(o.ffprobePath?{ffprobePath:o.ffprobePath}:{}),
+    ...(o.ffmpegTimeoutMs!==undefined?{timeoutMs:o.ffmpegTimeoutMs}:{}),
     output:o.out!,overwrite:o.overwrite??false,signal:signal.signal},async consume=>{
     const result=await engine.renderSequence({...sequence,onFrame:async(frame,index,total)=>{
      await consume(frame.rgba);resultFrameCount=total;
