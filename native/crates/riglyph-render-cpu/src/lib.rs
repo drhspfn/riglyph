@@ -64,7 +64,7 @@ fn round_byte(x:f64)->u8{(255.*x).round().clamp(0.,255.) as u8}
 }
 #[inline]fn sample(t:&Texture,u:f64,v:f64,sampling:u8)->[f64;4]{
  if sampling==0{return texel(t,(u*t.width as f64).floor() as i32,(v*t.height as f64).floor() as i32);}
- let fx=u*t.width as f64-.5;let fy=v*t.height as f64-.5;
+ let fx=u*t.width as f64-0.5;let fy=v*t.height as f64-0.5;
  let x=fx.floor() as i32;let y=fy.floor() as i32;
  let tx=fx-x as f64;let ty=fy-y as f64;
  let a=texel(t,x,y);let b=texel(t,x+1,y);let c=texel(t,x,y+1);let d=texel(t,x+1,y+1);
@@ -108,7 +108,7 @@ fn shade_band(buffer:&mut [f32],frame:&FrameInput,textures:&std::collections::Ha
    let [u1,v1]=[triangle[1].u,triangle[1].v];
    let [u2,v2]=[triangle[2].u,triangle[2].v];
    for py in y_lo..=y_hi{for px in x_lo..=x_hi{
-    let x=px as f64+.5;let y=py as f64+.5;
+    let x=px as f64+0.5;let y=py as f64+0.5;
     let w1=((x-x0)*(y2-y0)-(y-y0)*(x2-x0))*inv;
     let w2=((x1-x0)*(y-y0)-(y1-y0)*(x-x0))*inv;
     let w0=1.-w1-w2;
