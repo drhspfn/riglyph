@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.16.0 — Spine 4.1 Constraint Completion (release candidate)
+
+- Complete World/Local × Absolute/Relative Transform Constraints and six independent mixing channels (A19).
+- Complete targeted one- and two-bone IK: bend direction, softness, compression/stretching, uniform scaling, partial mixing and reflected/nonuniform transforms (A20).
+- Complete targeted Path Constraints: weighted/unweighted paths, deform timelines, open/closed geometry, constant/nonconstant speed, position/spacing/rotation modes and dynamic attachments.
+- Fix ordered Bézier arc sampling for negative spacing, repeated closed-path wraps and near-coincident chords.
+- Preserve applied/world matrices across mixed Transform → IK → Path chains; add deterministic repeat-seek and edge regressions.
+- Keep A18 atlas quarter-turn UV correction, Windows tooling fixes, browser, CPU/WebGL2 and React/Next.js regressions.
+- A20 final PR verification: 266/266 independent numeric IK/Path observations; 439/439 tests per CI workspace matrix (Ubuntu/Windows, Node 22/24), all six jobs passing on its final HEAD. Newer release commit requires fresh CI.
+- The user has also confirmed successful local cubie playback; this is not an independently recorded release CI test.
+- Supported import profile remains Spine Binary 4.1.23. Full official visual parity and arbitrary third-party Spine asset compatibility are not claimed.
+
+
 ## 0.15.1 — preview candidate (unpublished)
 
 - Expose `setCamera({mode: 'fit-scene', padding: 1})` with backward-compatible default padding `1.25` and React controls regression checks.

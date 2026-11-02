@@ -12,7 +12,7 @@ Convert supported source assets into a portable intermediate representation, the
 
 </div>
 
-> **Version 0.15.1 · early preview.** The API is evolving. Support is currently limited to the documented input profile; see [compatibility](docs/compatibility.md).
+> **Version 0.16.0 · early preview.** The API is evolving. Support is currently limited to the documented input profile; see [compatibility](docs/compatibility.md).
 
 ## What it does
 
@@ -76,7 +76,7 @@ player.setCamera({ mode: 'fit-scene', padding: 1 });
 | [`@riglyph/player-web`](packages/player-web) | Asset loading, animation controls and camera API |
 | [`@riglyph/cli`](packages/cli) | Probe, import, convert, validate, inspect and snapshot |
 
-All eight packages are versioned `0.15.1` together. The root project is private to npm; only packages are publishable. IR schema is independently versioned (`1.0.0`).
+All eight packages are versioned `0.16.0` together. The root project is private to npm; only packages are publishable. IR schema is independently versioned (`1.0.0`).
 
 ## Develop locally
 

@@ -2,11 +2,11 @@ import {mkdtempSync,readFileSync,writeFileSync,existsSync,rmSync,mkdirSync,copyF
 import {spawnSync} from 'node:child_process';import {tmpdir} from 'node:os';import {resolve,join} from 'node:path';
 import {authoredMinimalWire} from './g7-authored-wire.mjs';
 import {runNpm} from './npm-process.mjs';
-const root=resolve();const temp=mkdtempSync(join(tmpdir(),'riglyph-external-'));
+const root=resolve();const version=JSON.parse(readFileSync(join(root,'package.json'),'utf8')).version;const temp=mkdtempSync(join(tmpdir(),'riglyph-external-'));
 const exe=(command,args,cwd=temp)=>{const x=spawnSync(command,args,{cwd,encoding:'utf8',timeout:60000});if(x.status!==0)throw Error(`${command} ${args.join(' ')} status=${x.status} ${x.stderr||x.stdout}`);return x.stdout;};
 try{
  const names=['core','runtime','renderer-webgl2','renderer-cpu','importer-sdk','importer-spine-4.1','player-web','cli'];
- const tarballs=names.map(n=>join(root,'release-packages',`riglyph-${n}-0.15.1.tgz`));
+ const tarballs=names.map(n=>join(root,'release-packages',`riglyph-${n}-${version}.tgz`));
  if(!tarballs.every(existsSync))throw Error('Missing packed tarballs');
  writeFileSync(join(temp,'package.json'),JSON.stringify({name:'riglyph-external-consumer',version:'0.0.0',type:'module',private:true}));
  runNpm(['install','--offline','--ignore-scripts','--no-audit','--no-fund',...tarballs],{cwd:temp,timeout:60000});
@@ -17,7 +17,7 @@ try{
  exe('node',[join(root,'node_modules/typescript/bin/tsc'),'--noEmit','-p','tsconfig.json']);
  const cli=join(temp,'node_modules/@riglyph/cli/dist/cli/main.js'),binary=join(temp,'character.skel'),atlas=join(temp,'character.atlas'),png=join(temp,'synthetic-example.png');
  writeFileSync(binary,authoredMinimalWire());copyFileSync(join(root,'fixtures/atlas-demo.atlas'),atlas);copyFileSync(join(root,'fixtures/synthetic-example.png'),png);
- if(exe(process.execPath,[cli,'--version']).trim()!=='0.15.1')throw Error('CLI version incorrect');
+ if(exe(process.execPath,[cli,'--version']).trim()!==version)throw Error('CLI version incorrect');
  const probe=JSON.parse(exe(process.execPath,[cli,'probe',binary]));if(probe.identity.version!=='4.1.23')throw Error('Wrong probe');
  const output=join(temp,'converted');exe(process.execPath,[cli,'convert',binary,'--atlas',atlas,'--images',temp,'--out-dir',output]);
  const manifest=JSON.parse(readFileSync(join(output,'manifest.json')));
