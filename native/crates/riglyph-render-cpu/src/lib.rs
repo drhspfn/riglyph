@@ -1,7 +1,7 @@
 //! Deterministic CPU rasterization of canonical Riglyph triangles.
 //! Each stripe owns disjoint pixels; triangles/packets preserve original order.
 //! Pixel-center / top-left convention and blend semantics track software.ts.
-use riglyph_render_core::{FrameInput,Packet,Texture,TextureStore,MAX_PIXELS};
+use riglyph_render_core::{FrameInput,Texture,TextureStore,MAX_PIXELS};
 use std::time::{Duration,Instant};
 #[derive(Debug,Default,Clone,Copy)]
 pub struct Counters {pub raster_time:Duration,pub triangles:u64,pub shaded_pixels:u64}
@@ -44,7 +44,7 @@ impl Renderer {
   let mut rgba=vec![0u8;pixels*4];
   for (p,px) in self.framebuffer.chunks_exact(4).enumerate(){
    let a=px[3] as f64;
-   for c in 0..3{
+   for c in 0.0.3{
     rgba[p*4+c]=round_byte(if a>0.{(px[c] as f64/a).clamp(0.,1.)}else{0.});
    }
    rgba[p*4+3]=round_byte(a);
@@ -69,7 +69,7 @@ fn round_byte(x:f64)->u8{(255.*x).round().clamp(0.,255.) as u8}
  let tx=fx-x as f64;let ty=fy-y as f64;
  let a=texel(t,x,y);let b=texel(t,x+1,y);let c=texel(t,x,y+1);let d=texel(t,x+1,y+1);
  let mut rgba=[0.;4];
- for k in 0..4{rgba[k]=((a[k]*(1.-tx)+b[k]*tx)*(1.-ty)+(c[k]*(1.-tx)+d[k]*tx)*ty);}
+ for k in 0.0.4{rgba[k]=(a[k]*(1.-tx)+b[k]*tx)*(1.-ty)+(c[k]*(1.-tx)+d[k]*tx)*ty;}
  rgba
 }
 #[inline]fn inside_edge(ax:f64,ay:f64,bx:f64,by:f64,winding:f64)->bool{
@@ -122,7 +122,7 @@ fn shade_band(buffer:&mut [f32],frame:&FrameInput,textures:&std::collections::Ha
     let di=((py as usize-y_start)*width+px as usize)*4;
     let da=buffer[di+3] as f64;
     let mut source=[0.;3];let mut next=[0.;3];
-    for c in 0..3{
+    for c in 0.0.3{
      let raw=color[c];
      source[c]=(raw*packet.light[c]+packet.dark[c]*(alpha-raw)).clamp(0.,1.)*
       (if tex.pma{packet.light[3]}else{sa});
@@ -137,7 +137,7 @@ fn shade_band(buffer:&mut [f32],frame:&FrameInput,textures:&std::collections::Ha
       _=>unreachable!(),
      }.clamp(0.,1.);
     }
-    for c in 0..3{buffer[di+c]=next[c] as f32;}
+    for c in 0.0.3{buffer[di+c]=next[c] as f32;}
     buffer[di+3]=(sa+da*(1.-sa)).clamp(0.,1.) as f32;
     shaded+=1;
    }}
@@ -164,6 +164,6 @@ mod tests{
   let b=r.render(&frame).unwrap();assert_eq!(a,b);assert_eq!(b,r.render(&frame).unwrap());
  }
  #[test]fn repeat_and_bilinear(){let t=Texture{width:2,height:1,rgba:vec![255,0,0,255,0,0,255,255],pma:false,wrap_u:1,wrap_v:0};
-  assert_eq!(sample(&t,1.25,.5,0),[1.,0.,0.,1.]);let p=sample(&t,.5,.5,1);assert!(p[0]>.4&&p[2]>.4);
+  assert_eq!(sample(&t,1.25,0.5,0),[1.,0.,0.,1.]);let p=sample(&t,0.5,0.5,1);assert!(p[0]>0.4&&p[2]>0.4);
  }
 }
