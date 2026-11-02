@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 const version=JSON.parse(readFileSync('package.json','utf8')).version;
 if(process.env.GITHUB_ACTIONS!=='true'||
    process.env.GITHUB_EVENT_NAME!=='release'||
-   process.env.GITHUB_REF!==`refs/tags/v${version}`||
+   ![`refs/tags/${version}`,`refs/tags/v${version}`].includes(process.env.GITHUB_REF)||
    process.env.GITHUB_REPOSITORY!=='drhspfn/riglyph')
  throw Error('Publishing is only allowed from the matching GitHub Release in drhspfn/riglyph');
 
