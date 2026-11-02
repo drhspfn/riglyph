@@ -94,3 +94,35 @@ jobs:
             examples/react/package-lock.json
             examples/nextjs/package-lock.json
           if-no-files-found: warn
+
+  headless-video:
+    name: Headless video (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: ['22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm run build
+      - name: Install FFmpeg and ffprobe (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install FFmpeg and ffprobe (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install ffmpeg --yes --no-progress
+      - name: Validate real H.264 MP4 and VP9 alpha WebM outputs
+        run: node --test dist/tests/headless-video.integration.js
+      - name: Retain decoded and encoded A21 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: headless-video-${{ matrix.os }}-node${{ matrix.node }}
+          path: test-output/headless-video/
+          if-no-files-found: warn
