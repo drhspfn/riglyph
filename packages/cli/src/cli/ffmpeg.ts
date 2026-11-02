@@ -16,15 +16,16 @@ const run=(command:string,args:string[],timeout=20000)=>{
  if(p.error||p.status!==0)throw bad(`${command} ${args[0]??''} failed: ${p.error?.message??p.stderr?.slice(-1200)??p.status}`);
  return p.stdout;
 };
-export function probeFFmpeg(path='ffmpeg'):string{
+export function probeFFmpeg(path='ffmpeg',format?:VideoFormat):string{
  const encoders=run(path,['-hide_banner','-encoders']);
- requireCondition(/\blibx264\b/.test(encoders),'UNSUPPORTED_SEMANTIC_FEATURE','FFmpeg lacks libx264 H.264 encoder');
- requireCondition(/\blibvpx-vp9\b/.test(encoders),'UNSUPPORTED_SEMANTIC_FEATURE','FFmpeg lacks libvpx-vp9 encoder');
+ if(!format||format==='mp4')requireCondition(/\blibx264\b/.test(encoders),'UNSUPPORTED_SEMANTIC_FEATURE','FFmpeg lacks libx264 H.264 encoder');
+ if(!format||format==='webm')requireCondition(/\blibvpx-vp9\b/.test(encoders),'UNSUPPORTED_SEMANTIC_FEATURE','FFmpeg lacks libvpx-vp9 encoder');
  return run(path,['-version']).split('\n')[0]??'ffmpeg';
 }
 function ffprobeFor(ffmpeg:string,explicit?:string):string{
  if(explicit)return explicit;
  const name=parse(ffmpeg).base.toLowerCase();
+ if(ffmpeg==='ffmpeg'||ffmpeg==='ffmpeg.exe')return process.platform==='win32'?'ffprobe.exe':'ffprobe';
  return name==='ffmpeg.exe'?join(dirname(ffmpeg),'ffprobe.exe'):name==='ffmpeg'?join(dirname(ffmpeg),'ffprobe'):'ffprobe';
 }
 export function validateEncoder(options:EncoderSettings):void{
@@ -83,7 +84,7 @@ export async function encodeVideoFrames(o:EncoderSettings,render:(consume:(frame
  validateEncoder(o);
  const exe=o.ffmpegPath??process.env['RIGLYPH_FFMPEG']??'ffmpeg';
  const settings={...o,ffmpegPath:exe};
- probeFFmpeg(exe);
+ probeFFmpeg(exe,o.format);
  const destination=resolve(o.output);await mkdir(dirname(destination),{recursive:true});
  let previous=false;
  try{previous=(await stat(destination)).isFile();}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e;}
