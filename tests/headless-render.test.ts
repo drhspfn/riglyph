@@ -19,7 +19,7 @@ function engine(overrides:Partial<HeadlessOptions>={}):HeadlessRenderEngine{
 test('headless frame sampler deterministic with no browser or WebGL',async()=>{
  const r=engine();
  const first=await r.renderFrame({clipId:'rotate90',timeSec:0});
- const last=await r.renderFrame({clipId:'rotate90',timeSec:1});
+ const last=await r.renderFrame({clipId:'rotate90',timeSec:.5});
  assert.equal(first.rgba.length,32*32*4);
  assert.deepEqual(first.rgba,(await r.renderFrame({clipId:'rotate90',timeSec:0})).rgba);
  assert.notDeepEqual(first.rgba,last.rgba,'animated geometry must change');
