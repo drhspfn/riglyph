@@ -11,6 +11,9 @@ on:
   workflow_dispatch:
   release:
     types: [published]
+concurrency:
+  group: a22-native-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 permissions:
   contents: read
 jobs:
