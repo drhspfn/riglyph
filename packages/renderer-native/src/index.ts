@@ -80,11 +80,11 @@ export class NativeRenderer {
   requireCondition(Number.isSafeInteger(threads)&&threads>=1&&threads<=16,'INVALID_HEADER','Native threads must be 1..16');
   this.process=spawn(nativeBinaryPath(options.binaryPath),['--threads',String(threads)],
    {stdio:['pipe','pipe','pipe'],windowsHide:true});
-  this.process.stdout.on('data',(chunk:Buffer)=>this.handleData(chunk));
+  this.process.stdout!.on('data',(chunk:Buffer)=>this.handleData(chunk));
   this.process.on('error',(e)=>this.fail(err(`Native process error: ${e.message}`)));
   this.process.on('exit',(code)=>this.fail(err(`Native process exited: ${code}`)));
-  this.process.stdin.on('error',(e)=>this.fail(err(`Native stdin error: ${e.message}`)));
-  this.process.stderr.on('data',(chunk:Buffer)=>{this.stderr=(this.stderr+chunk.toString()).slice(-8192);});
+  this.process.stdin!.on('error',(e)=>this.fail(err(`Native stdin error: ${e.message}`)));
+  this.process.stderr!.on('data',(chunk:Buffer)=>{this.stderr=(this.stderr+chunk.toString()).slice(-8192);});
  }
  private stderr='';
  static async create(options:NativeRendererOptions={}):Promise<NativeRenderer>{
@@ -118,7 +118,7 @@ export class NativeRenderer {
    if(this.closed)return reject(err('Native process is already closed'));
    this.queue.push({resolve,reject});
    const framed=Buffer.allocUnsafe(bytes.length+4);framed.writeUInt32LE(bytes.length,0);bytes.copy(framed,4);
-   this.process.stdin.write(framed);
+   this.process.stdin!.write(framed);
   });
   const result=this.serial.then(send,send);
   this.serial=result.catch(()=>{});
@@ -141,7 +141,7 @@ export class NativeRenderer {
  }
  async dispose():Promise<void>{
   this.closed=true;
-  this.process.stdin.destroy();this.process.kill();
+  this.process.stdin!.destroy();this.process.kill();
   for(const p of this.queue.splice(0))p.reject(err('Native renderer disposed'));
  }
 }
