@@ -89,6 +89,10 @@ test('CLI renderer rejects unknown args and honors explicit config overrides',as
   const o=await parseRenderOptions(['--config',file,'--fps','17']);
   assert.equal(o.fps,17);assert.equal(o.width,20);
   await assert.rejects(()=>parseRenderOptions(['--bogus','abc']),/Unknown render option/);
+  await writeFile(file,JSON.stringify({camera:{mode:'fixed',madeUp:1}}));
+  await assert.rejects(()=>parseRenderOptions(['--config',file]),/Unknown camera field/);
+  await writeFile(file,JSON.stringify({timeline:[{atSec:0,track:0,clipId:'idle',bad:1}]}));
+  await assert.rejects(()=>parseRenderOptions(['--config',file]),/Unknown timeline action field/);
  }finally{await rm(root,{recursive:true,force:true});}
 });
 test('CLI writes actual PNG frames and manifest; existing destination is protected',async()=>{
@@ -129,4 +133,10 @@ test('bounded-memory sequence renders 180 frames without accumulating RGBA array
  const growth=peak-first;
  console.log(`A21_MEMORY_BEHAVIOR frames=180 frameBytes=16384 startRss=${first} peakRss=${peak} deltaBytes=${growth}`);
  assert.ok(growth<128*1024*1024,`Unexpected RSS growth ${growth} across 180 frames`);
+});
+
+test('timeline rejects unknown future clips before output and disallows nonfinite time',async()=>{
+ const r=engine();
+ await assert.rejects(()=>r.renderFrame({timeSec:.25,timeline:[{atSec:4,track:0,clipId:'not-found'}]}),/Unknown render timeline clip/);
+ await assert.rejects(()=>r.renderFrame({timeSec:.25,timeline:[{atSec:NaN,track:0,clipId:'rotate90'}]}),/Invalid render timeline event/);
 });
