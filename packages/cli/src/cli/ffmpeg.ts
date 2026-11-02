@@ -2,7 +2,7 @@
 import {spawn,spawnSync} from 'node:child_process';
 import {once} from 'node:events';
 import {dirname,join,parse,resolve} from 'node:path';
-import {rename,rm,stat,mkdir} from 'node:fs/promises';
+import {rename,rm,lstat,mkdir} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {EngineError,requireCondition} from '@riglyph/core';
 
@@ -86,8 +86,10 @@ export async function encodeVideoFrames(o:EncoderSettings,render:(consume:(frame
  const settings={...o,ffmpegPath:exe};
  probeFFmpeg(exe,o.format);
  const destination=resolve(o.output);await mkdir(dirname(destination),{recursive:true});
+ requireCondition(destination.endsWith(o.format==='mp4'?'.mp4':'.webm'),'INVALID_HEADER','Video output extension does not match format');
  let previous=false;
- try{previous=(await stat(destination)).isFile();}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e;}
+ try{const info=await lstat(destination);requireCondition(info.isFile()&&!info.isSymbolicLink(),'OUTPUT_EXISTS','Output is not a regular file');previous=true;}
+ catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e;}
  requireCondition(!previous||!!o.overwrite,'OUTPUT_EXISTS',`Video already exists: ${destination}`);
  const info=parse(destination);
  const staged=join(info.dir,`.${info.name}-${randomUUID()}${info.ext}`);
@@ -96,6 +98,7 @@ export async function encodeVideoFrames(o:EncoderSettings,render:(consume:(frame
  child.once('error',e=>{fatal=e;});
  child.stderr?.on('data',(chunk:Buffer)=>{stderr=(stderr+chunk.toString()).slice(-16384);});
  const exit=new Promise<number>((yes,no)=>{child.once('error',no);child.once('exit',(code)=>yes(code??-1));});
+ child.stdin.on('error',e=>{fatal=e;});
  const cancel=()=>{child.stdin?.destroy();child.kill('SIGKILL');};
  o.signal?.addEventListener('abort',cancel,{once:true});
  let frames=0,alphaPixel:number|null=null;
@@ -105,7 +108,7 @@ export async function encodeVideoFrames(o:EncoderSettings,render:(consume:(frame
    requireCondition(frame.byteLength===o.width*o.height*4,'INVALID_ATLAS','Incorrect raw video frame dimensions');
    if(frames===0&&o.alpha)for(let p=0;p<o.width*o.height;p++)if(frame[p*4+3]!<32){alphaPixel=p;break;}
    if(fatal)throw fatal;
-   if(!child.stdin.write(frame))await once(child.stdin,'drain');
+   if(!child.stdin.write(frame))await Promise.race([once(child.stdin,'drain'),exit.then(code=>{throw bad(`FFmpeg exited before stdin drained: ${code}; ${stderr.slice(-1000)}`);})]);
    frames++;
   });
   requireCondition(count===frames&&frames>0,'INVALID_TIMELINE','Encoded frame count disagrees with render scheduler');
@@ -113,8 +116,16 @@ export async function encodeVideoFrames(o:EncoderSettings,render:(consume:(frame
   const code=await exit;
   requireCondition(code===0,'UNSUPPORTED_SEMANTIC_FEATURE',`FFmpeg exited ${code}: ${stderr.slice(-4000)}`);
   const probe=probeVideo(staged,settings,count,alphaPixel);
-  if(previous)await rm(destination);
-  await rename(staged,destination);return probe;
+  if(!previous){await rename(staged,destination);return probe;}
+  const backup=join(info.dir,`.riglyph-video-backup-${randomUUID()}${info.ext}`);
+  try{await rename(destination,backup);}catch(e){throw new EngineError('OUTPUT_COMMIT_FAILED',`Could not back up existing video: ${String(e)}`);}
+  try{await rename(staged,destination);}catch(e){
+   try{await rename(backup,destination);}catch(restore){throw new EngineError('OUTPUT_ROLLBACK_FAILED',
+    `Video commit failed (${String(e)}); previous video preserved at ${backup}; restore error: ${String(restore)}`);}
+   throw new EngineError('OUTPUT_COMMIT_FAILED',`Video commit failed and previous output restored: ${String(e)}`);
+  }
+  await rm(backup,{force:true}).catch(e=>process.stderr.write(`WARNING: video committed; old backup retained at ${backup}: ${String(e)}\\n`));
+  return probe;
  }catch(e){cancel();await exit.catch(()=>{});throw e;}
  finally{o.signal?.removeEventListener('abort',cancel);await rm(staged,{force:true}).catch(()=>{});}
 }
