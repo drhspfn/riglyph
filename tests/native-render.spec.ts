@@ -5,6 +5,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {fixture} from './helpers.js';
+import {dynamicClipFixture} from './geometry-fixture.js';
 import {SkeletonInstance} from '@riglyph/runtime';
 import {prepareDrawPackets} from '@riglyph/renderer-webgl2';
 import {rasterize,HeadlessRenderEngine} from '@riglyph/renderer-cpu';
@@ -17,6 +18,18 @@ import {join,resolve} from 'node:path';
 
 const binary=process.env['RIGLYPH_NATIVE_BIN'];
 assert.ok(binary,'RIGLYPH_NATIVE_BIN is mandatory for A22 external native acceptance');
+test('dynamic clipping full sequence has identical JS/Rust pixels, packets and bounds',async()=>{
+ const ir=dynamicClipFixture(),native=await createNativeRenderer({binaryPath:binary,threads:2});
+ const options={ir,textures:new Map([['page0',{width:2,height:2,rgba:new Uint8Array(16).fill(255),premultiplied:false}]]),
+  width:48,height:48,geometry:{clippingPolicy:'compatible' as const,onGeometryWarning:()=>{}}};
+ const js=new HeadlessRenderEngine(options),rust=new HeadlessRenderEngine({...options,rasterBackend:native});
+ let frames=0;
+ try{await js.renderSequence({clipId:'dynamic',startSec:0,endSec:1,fps:12,onFrame:async f=>{
+  const r=await rust.renderFrame({clipId:'dynamic',timeSec:f.timeSec,cameraViewport:f.viewport});
+  assert.equal(r.packetCount,f.packetCount);assert.deepEqual(r.bounds,f.bounds);assert.deepEqual(r.rgba,f.rgba);
+  assert.ok(r.rgba.some((v,i)=>i%4===3&&v>0));frames++;
+ }});assert.equal(frames,12);}finally{await native.dispose();}
+});
 const viewport:Viewport={left:0,bottom:0,width:10,height:10};
 const tri=new Float32Array([1,1,9,1,1,9]);
 const uv=new Float32Array([0,0,1,0,0,1]);

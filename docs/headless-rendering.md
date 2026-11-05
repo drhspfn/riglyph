@@ -1,5 +1,13 @@
 # Headless animation rendering (A21)
 
+Clipping is strict by default. `--clipping-policy compatible` explicitly enables
+even-odd handling of proper mask crossings with structured warnings.
+`--debug-geometry <new-private-file.jsonl>` records geometry samples and retains
+failure evidence without textures. Do not publish these geometry records.
+The library equivalent is `new HeadlessRenderEngine({...options, geometry:
+{clippingPolicy: 'compatible', onGeometryWarning: warning => console.warn(warning)}})`.
+See [rendering conformance](rendering-conformance.md) for semantics and limitations.
+
 Riglyph renders **Universal IR** directly with `SkeletonInstance`, `prepareDrawPackets` and the CPU rasterizer. No Chromium, WebGL context, DOM or browser is launched. PNG output requires no FFmpeg.
 
 ## Quick start

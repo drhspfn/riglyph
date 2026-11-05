@@ -6,7 +6,7 @@ import {EngineError,requireCondition} from '@riglyph/core';
 import type {IRDocument} from '@riglyph/core';
 import {SkeletonInstance,AnimationPlayer} from '@riglyph/runtime';
 import {prepareDrawPackets,drawBounds} from '@riglyph/renderer-webgl2';
-import type {DrawPacket,Viewport} from '@riglyph/renderer-webgl2';
+import type {DrawPacket,Viewport,PacketOptions} from '@riglyph/renderer-webgl2';
 import {rasterize} from './software.js';
 import type {RawTexture,TextureSampling} from './software.js';
 
@@ -31,8 +31,9 @@ export type HeadlessOptions={
  width:number;height:number;fps?:number;
  camera?:CameraSettings;background?:RenderBackground;quality?:RenderQuality;
  maxFrames?:number;maxBytes?:number;rasterBackend?:RasterBackend;
+ geometry?:PacketOptions;
 };
-export type FrameRequest={timeSec:number;clipId?:string;skinId?:string|null;loop?:boolean;signal?:AbortSignal;
+export type FrameRequest={timeSec:number;frameIndex?:number;clipId?:string;skinId?:string|null;loop?:boolean;signal?:AbortSignal;
  playbackSpeed?:number;timeline?:readonly TimelineAction[];cameraViewport?:Viewport};
 export type RenderFrame={timeSec:number;width:number;height:number;rgba:Uint8Array;
  viewport:Viewport;bounds:RenderBounds|null;packetCount:number};
@@ -144,7 +145,9 @@ export class HeadlessRenderEngine{
   }else if(request.clipId){
    instance.evaluate([{clipId:request.clipId,timeSec:request.timeSec*speed,loop:request.loop??false}]);
   }else instance.evaluate();
-  return {instance,packets:prepareDrawPackets(instance)};
+  return {instance,packets:prepareDrawPackets(instance,{...this.options.geometry,
+   ...(request.clipId?{clipId:request.clipId}:{}),timeSec:request.timeSec*speed,
+   ...(request.frameIndex!==undefined?{frameIndex:request.frameIndex}:{})})};
  }
  private bounds(packets:readonly DrawPacket[]):RenderBounds|null{
   if(this.camera.mode==='fit-selection'){
@@ -202,7 +205,7 @@ export class HeadlessRenderEngine{
    let envelope:RenderBounds|null=null;
    const n=fit==='start'?1:count;
    for(let i=0;i<n;i++){
-    check();const pose=this.pose({...args,timeSec:timestamp(i)});
+    check();const pose=this.pose({...args,timeSec:timestamp(i),frameIndex:i});
     envelope=joinBounds(envelope,this.bounds(pose.packets));
     args.onProgress?.({phase:'prepass',frame:i+1,totalFrames:n,timeSec:timestamp(i)});
    }
@@ -210,7 +213,7 @@ export class HeadlessRenderEngine{
   }
   for(let i=0;i<count;i++){
    check();const timeSec=timestamp(i);
-   const frame=await this.renderFrame({...args,timeSec,...(stable?{cameraViewport:stable}:{})});
+   const frame=await this.renderFrame({...args,timeSec,frameIndex:i,...(stable?{cameraViewport:stable}:{})});
    check();await args.onFrame(frame,i,count);
    args.onProgress?.({phase:'rendering',frame:i+1,totalFrames:count,timeSec});
   }

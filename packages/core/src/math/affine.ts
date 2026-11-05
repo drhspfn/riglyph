@@ -26,7 +26,8 @@ export function polarDecompose(p:Affine):{rotation:Affine;stretch:Affine}{
  const stretch:Affine={a:(u+root)/denom,b:v/denom,c:v/denom,d:(w+root)/denom,x:0,y:0};
  const inv=invert(stretch);const rotation=multiply({...p,x:0,y:0},inv);return {rotation,stretch};
 }
-/** Normalized transform semantics, independent of source version. Alternative modes require differential verification. */
+/** Selective inheritance, verified against independent 4.1 observations.
+ * Translation always follows the complete parent basis. */
 export function inheritTransform(parent:Affine,local:Transform,mode:Inheritance):Affine{
  const l=localMatrix(local);
  if(mode==='normal')return multiply(parent,l);
@@ -34,12 +35,30 @@ export function inheritTransform(parent:Affine,local:Transform,mode:Inheritance)
  let basis:Affine;
  switch(mode){
   case 'only_translation':basis=IDENTITY;break;
-  case 'no_rotation_or_reflection':basis=polarDecompose(parent).stretch;break;
-  case 'no_scale':basis=polarDecompose(parent).rotation;break;
-  case 'no_scale_or_reflection':{
-   const polar=polarDecompose(parent).rotation;
-   const angle=determinant(polar)<0?Math.atan2(polar.b,polar.a):Math.atan2(polar.b-polar.c,polar.a+polar.d);
-   basis={a:Math.cos(angle),b:Math.sin(angle),c:-Math.sin(angle),d:Math.cos(angle),x:0,y:0};break;
+  case 'no_rotation_or_reflection':{
+   // Keep stretch along the parent's world X axis and its perpendicular,
+   // removing reflection and the shear parallel to X. A polar stretch lives
+   // in a different coordinate frame and moves descendants under animation.
+   const sx=Math.hypot(parent.a,parent.b);
+   if(sx===0){
+    const sy=Math.hypot(parent.c,parent.d),x=sy?-parent.c/sy:0,y=sy?parent.d/sy:0;
+    basis={a:sy*x*x,b:sy*x*y,c:sy*x*y,d:sy*y*y,x:0,y:0};
+   }else{
+    const x=parent.a/sx,y=parent.b/sx,sy=Math.abs(determinant(parent))/sx;
+    basis={a:sx*x*x+sy*y*y,b:(sx-sy)*x*y,c:(sx-sy)*x*y,d:sx*y*y+sy*x*x,x:0,y:0};
+   }
+   break;
+  }
+  case 'no_scale':case 'no_scale_or_reflection':{
+   // Normalize the transformed *child* rotation axis. Parent polar rotation
+   // loses the direction of that axis under nonuniform scale or shear.
+   const angle=rad(local.rotationDeg),cos=Math.cos(angle),sin=Math.sin(angle);
+   let x=parent.a*cos+parent.c*sin,y=parent.b*cos+parent.d*sin;
+   const length=Math.hypot(x,y);if(length>0){x/=length;y/=length;}
+   const sign=mode==='no_scale'&&determinant(parent)<0?-1:1;
+   basis={a:x,b:y,c:-y*sign,d:x*sign,x:0,y:0};
+   const world=multiply(basis,localMatrix({...local,rotationDeg:0}));
+   world.x=translation[0];world.y=translation[1];return world;
   }
  }
  const world=multiply(basis,l);world.x=translation[0];world.y=translation[1];return world;
