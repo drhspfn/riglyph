@@ -15,7 +15,8 @@ test('all five inheritance modes yield distinct predictable transforms',()=>{
  const normal=inheritTransform(parent,child,'normal');near(normal.x,1);near(normal.y,10);near(Math.hypot(normal.a,normal.b),2);
  const only=inheritTransform(parent,child,'only_translation');near(only.x,1);near(only.y,10);near(only.a,1);
  const noScale=inheritTransform(parent,child,'no_scale');near(Math.hypot(noScale.a,noScale.b),1);
- const noRot=inheritTransform(parent,child,'no_rotation_or_reflection');near(noRot.a,2);near(noRot.d,3);
+ // Independent Viewer observation: retained stretch is in world axes.
+ const noRot=inheritTransform(parent,child,'no_rotation_or_reflection');near(noRot.a,3);near(noRot.d,2);
  const noScaleNoRefl=inheritTransform(parent,child,'no_scale_or_reflection');near(Math.hypot(noScaleNoRefl.a,noScaleNoRefl.b),1);
 });
 test('negative reflection and polar decomposition remove scale without NaN',()=>{
