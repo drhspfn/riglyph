@@ -2,6 +2,12 @@
 
 WebGL2 renderer for Riglyph draw packets and skeletal scenes.
 
+`prepareDrawPackets(instance, {clippingPolicy: 'strict' | 'compatible'})` owns
+shared CPU geometry for all backends. Strict is the default. Compatible uses
+explicit even-odd fill for proper crossings and emits structured warnings through
+`onGeometryWarning`; `onGeometryDiagnostic` captures geometry samples.
+See [clipping contracts](https://github.com/drhspfn/riglyph/blob/main/docs/rendering-conformance.md).
+
 **Version:** 0.15.1 (pre-1.0 preview). Part of the [Riglyph toolkit](https://github.com/drhspfn/riglyph).
 
 ## Installation

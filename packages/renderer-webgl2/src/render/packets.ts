@@ -3,68 +3,21 @@ import {apply,localMatrix} from '@riglyph/core';
 import type {AtlasRegion,Attachment,MeshAttachment,LinkedMeshAttachment,Vertex,Vec4,Vec3,Blend,IRDocument} from '@riglyph/core';
 import {SkeletonInstance} from '@riglyph/runtime';
 export type DrawPacket={slotId:string;attachmentId:string;pageId:string;positions:Float32Array;uvs:Float32Array;indices:Uint32Array;light:Vec4;dark:Vec3|null;blend:Blend;pma:boolean};
-type P={x:number;y:number;u:number;v:number};
-type Triangle=[P,P,P];
-const cross=(a:P,b:P,c:P)=>(b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
-function polygonArea(points:readonly P[]):number{let area=0;for(let i=0;i<points.length;i++){const a=points[i]!,b=points[(i+1)%points.length]!;area+=a.x*b.y-b.x*a.y;}return area/2;}
-const interpolate=(a:P,b:P,t:number):P=>({x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t,u:a.u+(b.u-a.u)*t,v:a.v+(b.v-a.v)*t});
-/** Ear removal triangulator for a simple polygon. Collinear ears are filtered. */
-export function triangulatePolygon(polygon:readonly P[]):Triangle[]{
- requireCondition(polygon.length>=3,'INVALID_TOPOLOGY','Clipping polygon needs at least three points');
- requireCondition(polygon.length<=4_096,'LIMIT_EXCEEDED','Clipping polygon too complex for verified O(n^2) triangulation');
- requireCondition(polygon.every(p=>Object.values(p).every(Number.isFinite)),'INVALID_TOPOLOGY','Non-finite clipping polygon');
- const same=(a:P,b:P)=>Math.hypot(a.x-b.x,a.y-b.y)<=1e-8;
- for(let i=0;i<polygon.length;i++)requireCondition(!same(polygon[i]!,polygon[(i+1)%polygon.length]!),
-  'INVALID_TOPOLOGY',`Clipping polygon contains zero-length edge ${i}`);
- const signedArea=polygonArea(polygon);
- requireCondition(Number.isFinite(signedArea)&&Math.abs(signedArea)>1e-10,'INVALID_TOPOLOGY','Degenerate clipping polygon area');
- // Independently reject non-adjacent intersecting edges: ear removal alone may
- // otherwise silently produce nonzero triangles for self-crossing input.
- for(let i=0;i<polygon.length;i++)for(let j=i+2;j<polygon.length;j++){
-  if(i===0&&j===polygon.length-1)continue;
-  const a=polygon[i]!,b=polygon[(i+1)%polygon.length]!,c=polygon[j]!,d=polygon[(j+1)%polygon.length]!;
-  const s1=cross(a,b,c),s2=cross(a,b,d),t1=cross(c,d,a),t2=cross(c,d,b),eps=1e-9;
-  if((s1>eps&&s2<-eps||s1<-eps&&s2>eps)&&(t1>eps&&t2<-eps||t1<-eps&&t2>eps))
-   throw new EngineError('INVALID_TOPOLOGY',`Clipping polygon self-intersection at edges ${i}/${j}`);
-  if(same(a,c)||same(a,d)||same(b,c)||same(b,d))
-   throw new EngineError('INVALID_TOPOLOGY','Clipping polygon has self-touching vertices');
- }
- const order=signedArea>=0?[...polygon.keys()]:[...polygon.keys()].reverse();
- const result:Triangle[]=[];let guard=0;
- while(order.length>3){
-  requireCondition(guard++<polygon.length*polygon.length,'INVALID_TOPOLOGY','Polygon self-intersection or invalid winding');
-  let removed=false;
-  for(let j=0;j<order.length;j++){
-   const a=polygon[order[(j-1+order.length)%order.length]!]!,b=polygon[order[j]!]!,c=polygon[order[(j+1)%order.length]!]!;
-   if(cross(a,b,c)<=1e-9)continue;
-   if(order.some((index,k)=>{if(k===j||k===(j-1+order.length)%order.length||k===(j+1)%order.length)return false;
-    const p=polygon[index]!;return cross(a,b,p)>=-1e-10&&cross(b,c,p)>=-1e-10&&cross(c,a,p)>=-1e-10;}))continue;
-   result.push([a,b,c]);order.splice(j,1);removed=true;break;
-  }
-  if(!removed)throw new EngineError('INVALID_TOPOLOGY','Cannot triangulate clipping polygon');
- }
- const [ia,ib,ic]=order;if(ia!==undefined&&ib!==undefined&&ic!==undefined){const a=polygon[ia]!,b=polygon[ib]!,c=polygon[ic]!;if(cross(a,b,c)>1e-9)result.push([a,b,c]);}
- return result;
-}
-/** Convex clipping with interpolated UVs; clip triangle has a counter-clockwise winding. */
-export function clipAgainstTriangle(input:Triangle,clip:Triangle):Triangle[]{
- let polygon:P[]=[...input];
- for(let edge=0;edge<3;edge++){
-  const a=clip[edge]!,b=clip[(edge+1)%3]!,result:P[]=[];
-  for(let i=0;i<polygon.length;i++){
-   const prev=polygon[(i+polygon.length-1)%polygon.length]!,cur=polygon[i]!;
-   const sidePrev=cross(a,b,prev),sideCur=cross(a,b,cur);
-   const insidePrev=sidePrev>=-1e-7,insideCur=sideCur>=-1e-7;
-   if(insidePrev!==insideCur){const denom=sidePrev-sideCur;if(Math.abs(denom)>1e-15)result.push(interpolate(prev,cur,sidePrev/denom));}
-   if(insideCur)result.push(cur);
-  }
-  polygon=result;if(polygon.length<3)return [];
- }
- const tris:Triangle[]=[];for(let i=1;i+1<polygon.length;i++){
-  const a=polygon[0]!,b=polygon[i]!,c=polygon[i+1]!;if(Math.abs(cross(a,b,c))>1e-8)tris.push([a,b,c]);
- }
- return tris;
-}
+import {triangulatePolygon,clipAgainstTriangle,orientation,inspectPolygon} from './polygon.js';
+import type {GeometryPoint as P,GeometryTriangle as Triangle,ClippingPolicy,PolygonReport} from './polygon.js';
+export {triangulatePolygon,clipAgainstTriangle,inspectPolygon} from './polygon.js';
+export type {ClippingPolicy,PolygonReport} from './polygon.js';
+export type GeometryDiagnostic={
+ format:'riglyph-geometry-v1';severity:'info'|'warning'|'error';message:string;
+ sourceVersion:string;irSchemaVersion:string;clipId:string|null;skinId:string|null;
+ timeSec:number|null;frameIndex:number|null;slotId:string;attachmentId:string;endSlotId:string;
+ polygon:PolygonReport|null;localVertices:readonly Vertex[];worldVertices:number[];
+ deform:{basis:string;values:number[];expectedLength:number;state:'absent'|'present'};
+ boneMatrices:Record<string,unknown>;drawOrder:readonly string[];
+};
+export type PacketOptions={clippingPolicy?:ClippingPolicy;clipId?:string;timeSec?:number;frameIndex?:number;
+ onGeometryDiagnostic?:(diagnostic:GeometryDiagnostic)=>void;
+ onGeometryWarning?:(warning:GeometryDiagnostic)=>void};
 /** Atlas UVs in canonical top-left normalized image coordinates. Rotation
  * denotes physical pack orientation; source-space UVs remain unrotated.
  * Numeric quarter-turn behavior independently verified for Spine Binary 4.1.x. */
@@ -115,7 +68,7 @@ function chosenRegion(attachment:Attachment,index:number,ir:IRDocument):AtlasReg
 }
 function colors(slotLight:Vec4,attachLight:Vec4):Vec4{return [slotLight[0]*attachLight[0],slotLight[1]*attachLight[1],slotLight[2]*attachLight[2],slotLight[3]*attachLight[3]];}
 /** Pure CPU draw preparation. World geometry and clippers are independent of the GPU backend. */
-export function prepareDrawPackets(instance:SkeletonInstance):DrawPacket[]{
+export function prepareDrawPackets(instance:SkeletonInstance,options:PacketOptions={}):DrawPacket[]{
  const ir=instance.ir,packets:DrawPacket[]=[];
  const slots=new Map(ir.skeleton.slots.map(s=>[s.id,s]));
  const activeClips:{endSlotId:string;startDrawIndex:number;triangles:Triangle[]}[]=[];
@@ -133,9 +86,36 @@ export function prepareDrawPackets(instance:SkeletonInstance):DrawPacket[]{
   requireCondition(!state?.attachmentId||selected,'INVALID_ATTACHMENT',`Missing active attachment ${state?.attachmentId}`);
   if(selected?.kind==='clipping'){
    const poly=mapped(slot.boneId,selected.vertices,instance.deforms.get(selected.id));
-   requireCondition(activeClips.length===0,'UNSUPPORTED_SEMANTIC_FEATURE',
-    `Overlapping clipping scopes are not supported: ${slotId}`);
-   activeClips.push({endSlotId:selected.endSlotId,startDrawIndex:drawIndex,triangles:triangulatePolygon(poly)});
+   let report:PolygonReport|null=null;
+   const diagnostic=(severity:GeometryDiagnostic['severity'],message:string):GeometryDiagnostic=>({
+    format:'riglyph-geometry-v1',severity,message,sourceVersion:ir.source.version,irSchemaVersion:ir.schemaVersion,
+    clipId:options.clipId??null,skinId:instance.skinId??ir.skeleton.skins.find(s=>s.isDefault)?.id??null,
+    timeSec:options.timeSec??null,frameIndex:options.frameIndex??null,slotId,attachmentId:selected.id,endSlotId:selected.endSlotId,
+    polygon:report,localVertices:selected.vertices,worldVertices:poly.flatMap(p=>[p.x,p.y]),
+    deform:{basis:selected.vertices.some(v=>v.influences.length)?'influence_delta':'vertex_delta',
+     values:Array.from(instance.deforms.get(selected.id)??[]),
+     expectedLength:selected.vertices.reduce((n,v)=>n+(v.position?2:v.influences.length*2),0),
+     state:instance.deforms.has(selected.id)?'present':'absent'},
+    boneMatrices:Object.fromEntries([...new Set([slot.boneId,...selected.vertices.flatMap(v=>v.influences.map(i=>i.boneId))])].map(id=>[id,instance.world.get(id)])),
+    drawOrder:instance.drawOrder});
+   try{
+    requireCondition(activeClips.length===0,'UNSUPPORTED_SEMANTIC_FEATURE',
+     `Overlapping clipping scopes are not supported: ${slotId}`);
+    const triangles=triangulatePolygon(poly,options.clippingPolicy,warning=>{
+     report=warning;const d=diagnostic('warning','Self-crossing mask uses even-odd fill; official image parity is not guaranteed');
+     if(options.onGeometryWarning)options.onGeometryWarning(d);else console.warn(JSON.stringify(d));
+    });
+    activeClips.push({endSlotId:selected.endSlotId,startDrawIndex:drawIndex,triangles});
+    if(options.onGeometryDiagnostic){report??=inspectPolygon(poly);options.onGeometryDiagnostic(diagnostic(report.issues.length?'warning':'info','Clipping geometry sampled'));}
+   }catch(error){
+    if(error instanceof EngineError){
+     report=(error.details.context?.['polygon'] as PolygonReport|undefined)??null;
+     const message=`${error.message} (slot ${slotId}, attachment ${selected.id}, time ${options.timeSec??'unknown'})`;
+     options.onGeometryDiagnostic?.(diagnostic('error',message));
+     throw new EngineError(error.code,message,{...error.details,owner:selected.id,context:{...error.details.context,slotId,attachmentId:selected.id,
+      endSlotId:selected.endSlotId,clipId:options.clipId??null,timeSec:options.timeSec??null,frameIndex:options.frameIndex??null}});
+    }throw error;
+   }
   }else if(selected?.kind==='region'||selected?.kind==='mesh'||selected?.kind==='linked_mesh'){
    const region=chosenRegion(selected,state!.sequenceIndex,ir);const page=ir.atlases.pages.find(p=>p.id===region.pageId);
    requireCondition(page,'MISSING_TEXTURE_PAGE',`Missing page for ${region.id}`);
@@ -171,10 +151,16 @@ export function prepareDrawPackets(instance:SkeletonInstance):DrawPacket[]{
    let chunks:Triangle[]=[];
    for(let i=0;i<triangles.length;i+=3){
     const a=verts[triangles[i]!]!,b=verts[triangles[i+1]!]!,c=verts[triangles[i+2]!]!;
-    if(Math.abs(cross(a,b,c))>1e-9)chunks.push([a,b,c]);
+    if(orientation(a,b,c)!==0)chunks.push([a,b,c]);
    }
    for(const clip of activeClips){
-    chunks=chunks.flatMap(tri=>clip.triangles.flatMap(c=>clipAgainstTriangle(tri,c)));
+    requireCondition(chunks.length*clip.triangles.length<=2_000_000,'LIMIT_EXCEEDED',`Clipping work budget exceeded at slot ${slotId}`);
+    const clipped:Triangle[]=[];
+    for(const tri of chunks)for(const c of clip.triangles){
+     clipped.push(...clipAgainstTriangle(tri,c));
+     requireCondition(clipped.length<=250_000,'LIMIT_EXCEEDED',`Clipped triangle budget exceeded at slot ${slotId}`);
+    }
+    chunks=clipped;
    }
    const xyz=new Float32Array(chunks.length*6),uvs=new Float32Array(chunks.length*6),idx=new Uint32Array(chunks.length*3);
    for(let i=0;i<chunks.length;i++)for(let k=0;k<3;k++){

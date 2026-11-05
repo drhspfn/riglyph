@@ -3,6 +3,7 @@
  * manifest. CLI options override the JSON config explicitly.
  */
 import {readFile,writeFile,stat,mkdir,mkdtemp,rm,rename} from 'node:fs/promises';
+import {appendFileSync} from 'node:fs';
 import {resolve,dirname,join,relative,isAbsolute,basename} from 'node:path';
 import {EngineError,requireCondition,deserializeIR} from '@riglyph/core';
 import type {IRDocument} from '@riglyph/core';
@@ -14,6 +15,7 @@ import {decodePNG,encodePNG} from './png.js';
 import {commitConvertedDirectory} from './transaction.js';
 import {encodeVideoFrames} from './ffmpeg.js';
 import type {VideoProbe,VideoFormat} from './ffmpeg.js';
+import type {ClippingPolicy,GeometryDiagnostic} from '@riglyph/renderer-webgl2';
 
 export type RenderCliConfig={
  images?:string;clip?:string;skin?:string;start?:number;end?:number;fps?:number;
@@ -27,9 +29,11 @@ export type RenderCliConfig={
  overwrite?:boolean;progress?:'json'|'text'|'none';
  playbackSpeed?:number;loop?:boolean;loopCount?:number;includeEnd?:boolean;
  timeline?:TimelineAction[];maxFrames?:number;maxBytes?:number;prefix?:string;pad?:number;
+ clippingPolicy?:ClippingPolicy;debugGeometry?:string;
 };
 type Key=keyof RenderCliConfig;
 const properties:Record<string,Key>={
+ '--clipping-policy':'clippingPolicy','--debug-geometry':'debugGeometry',
  '--images':'images','--clip':'clip','--skin':'skin','--start':'start','--end':'end','--fps':'fps',
  '--width':'width','--height':'height','--format':'format','--out':'out','--out-dir':'outDir',
  '--background':'background','--sampling':'sampling','--supersampling':'supersampling',
@@ -99,6 +103,7 @@ export const renderHelp=`render <ir.json> [options] — CPU image sequence or FF
  --ffmpeg-path <executable> --ffprobe-path <executable> --ffmpeg-timeout-ms <ms>
  --prefix frame_ --pad 6 --max-frames <n> --max-bytes <n> --include-end
  --overwrite --progress json|text|none --config <json>
+ --clipping-policy strict|compatible --debug-geometry <private-output.jsonl>
  All timestamps: start + frameIndex/fps, default half-open [start,end).
  Config is JSON with camelCase option keys (camera and timeline may be nested).
  Explicit CLI options override config. No FFmpeg required for PNG.
@@ -131,6 +136,7 @@ function assertPositive(n:unknown,label:string,integer=false):number{
 const hasFile=async(path:string)=>stat(path).then(()=>true,err=>{if((err as NodeJS.ErrnoException).code==='ENOENT')return false;throw err;});
 export async function runRenderCli(file:string,argv:readonly string[]):Promise<void>{
  const o=await parseRenderOptions(argv);
+ requireCondition(o.clippingPolicy===undefined||o.clippingPolicy==='strict'||o.clippingPolicy==='compatible','INVALID_HEADER','Unknown clipping policy');
  const ir=deserializeIR((await readLimited(file)).toString('utf8'));
  const width=assertPositive(o.width??800,'width',true),height=assertPositive(o.height??600,'height',true);
  const fps=assertPositive(o.fps??30,'fps');
@@ -166,6 +172,13 @@ export async function runRenderCli(file:string,argv:readonly string[]):Promise<v
  const transparent=format==='mp4'?false:o.alpha??(!o.background);
  const background:RenderBackground=transparent?{mode:'transparent'}:{mode:'solid',color:o.background??'#000000'};
  const root=o.images??dirname(file),pages=await texturesFor(ir,root);
+ let diagnosticBytes=0;
+ if(o.debugGeometry){await mkdir(dirname(resolve(o.debugGeometry)),{recursive:true});await writeFile(o.debugGeometry,'',{flag:'wx'});}
+ const recordGeometry=(d:GeometryDiagnostic)=>{
+  const line=JSON.stringify(d)+'\n';diagnosticBytes+=Buffer.byteLength(line);
+  requireCondition(diagnosticBytes<=64*1024*1024,'LIMIT_EXCEEDED','Geometry diagnostics exceed 64 MiB');
+  appendFileSync(o.debugGeometry!,line);
+ };
  const selection=o.backend??'js';
  requireCondition(['js','native-cpu','auto'].includes(selection),'INVALID_HEADER','Unknown raster backend');
  let native:NativeRenderer|undefined;
@@ -181,6 +194,9 @@ export async function runRenderCli(file:string,argv:readonly string[]):Promise<v
   }
  }
  const engine=new HeadlessRenderEngine({ir,textures:pages,width,height,fps,camera,background,quality,
+  geometry:{clippingPolicy:o.clippingPolicy??'strict',...(o.debugGeometry?{onGeometryDiagnostic:recordGeometry}:{}),
+   onGeometryWarning:d=>process.stderr.write(JSON.stringify({event:'geometry-warning',code:'INVALID_TOPOLOGY',severity:'warning',
+    message:d.message,slotId:d.slotId,attachmentId:d.attachmentId,timeSec:d.timeSec,frameIndex:d.frameIndex,polygon:d.polygon})+'\n')},
   ...(native?{rasterBackend:native}:{}),
   maxFrames:o.maxFrames??200000,maxBytes:o.maxBytes??256*1024*1024});
  const signal=new AbortController();
@@ -212,7 +228,7 @@ export async function runRenderCli(file:string,argv:readonly string[]):Promise<v
     }});
     const manifest={format:'riglyph-render-sequence-v1',formatOutput:'png-sequence',
      fps,width,height,...result,clipId:clip??null,skinId:o.skin??null,alpha:transparent,
-     camera,quality,background,source:ir.source,status:'completed',framePrefix:prefix,padding:pad};
+     camera,quality,background,clippingPolicy:o.clippingPolicy??'strict',source:ir.source,status:'completed',framePrefix:prefix,padding:pad};
     await writeFile(join(stage,'render-manifest.json'),JSON.stringify(manifest,null,2)+'\n');
     notify({event:'render-progress',phase:'finalization',frame:result.frameCount,totalFrames:result.frameCount});
     await commitConvertedDirectory(stage,destination,o.overwrite??false);

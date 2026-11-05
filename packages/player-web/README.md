@@ -1,5 +1,12 @@
 # @riglyph/player-web
 
+The optional constructor setting `geometry: {clippingPolicy: 'compatible',
+onGeometryWarning: warning => console.warn(warning)}` enables explicit even-odd
+handling of self-crossing masks. Default clipping remains strict. The public
+package exports `ClippingPolicy`, `GeometryDiagnostic` and `PacketOptions`.
+See [rendering conformance](https://github.com/drhspfn/riglyph/blob/main/docs/rendering-conformance.md)
+for limitations and geometry diagnostics.
+
 Browser player for portable Riglyph skeletal scenes (IR + PNG pages). Version 0.15.1 preview.
 
 ## Install

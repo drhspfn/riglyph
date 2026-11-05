@@ -3,12 +3,13 @@ import type {IRDocument,AtlasPage} from '@riglyph/core';
 import {SkeletonInstance,AnimationPlayer} from '@riglyph/runtime';
 import type {TrackDiagnostics,RuntimePlaybackNotice} from '@riglyph/runtime';
 import {WebGL2Renderer,prepareDrawPackets,drawBounds} from '@riglyph/renderer-webgl2';
-import type {Viewport,DrawPacket} from '@riglyph/renderer-webgl2';
+import type {Viewport,DrawPacket,PacketOptions} from '@riglyph/renderer-webgl2';
+export type {ClippingPolicy,GeometryDiagnostic,PacketOptions} from '@riglyph/renderer-webgl2';
 import {fitBounds,panPixels,zoomAt} from './playground/camera.js';
 import type {CameraMode} from './playground/camera.js';
 export type CameraSettings={mode:CameraMode;viewport?:Viewport;slotId?:string;padding?:number};
 export type AssetManifest={assetFormat:'universal-skeleton-asset';assetVersion:'1.0.0';ir:string;pages:{pageId:string;url:string}[];defaultAnimation?:string};
-export type PlayerOptions={canvas:HTMLCanvasElement;assetUrl?:string;dpr?:number;autoResize?:boolean;enableControls?:boolean;allowCrossOrigin?:boolean;fetcher?:typeof fetch;onError?:(error:EngineError)=>void};
+export type PlayerOptions={canvas:HTMLCanvasElement;assetUrl?:string;dpr?:number;autoResize?:boolean;enableControls?:boolean;allowCrossOrigin?:boolean;fetcher?:typeof fetch;onError?:(error:EngineError)=>void;geometry?:PacketOptions};
 export type PlayerStatus={playing:boolean;animation:string|null;timeSec:number;loop:boolean;speed:number;camera:CameraSettings};
 export type PlayerEventType='start'|'transition'|'complete'|'loop'|'event'|'error';
 export type WebPlayerEvent=RuntimePlaybackNotice|{type:'error';track:-1;clipId:'';localTimeSec:0;cycle:0;error:EngineError};
@@ -302,7 +303,8 @@ export class WebPlayer {
   if(this.canvas.width!==w)this.canvas.width=w;if(this.canvas.height!==h)this.canvas.height=h;
   this.render();
  }
- packets():DrawPacket[]{if(!this.skeleton)return [];return prepareDrawPackets(this.skeleton);}
+ packets():DrawPacket[]{if(!this.skeleton)return [];return prepareDrawPackets(this.skeleton,{...this.opts.geometry,
+  ...(this.animation?{clipId:this.animation}:{}),timeSec:this.status.timeSec});}
  render():void{if(this.disposed||this.contextLost||!this.skeleton)return;
   const packets=this.packets();if(this.camera.mode!=='fixed'){
    const active=this.camera.mode==='fit-selection'?packets.filter(p=>p.slotId===this.camera.slotId):packets;
@@ -329,7 +331,7 @@ export class WebPlayer {
   const isolatedMixer=new AnimationPlayer(isolated);
   const clip=options.clipId===undefined?this.animation:this.resolveAnimation(options.clipId);
   if(clip){isolatedMixer.set(0,clip,this.loop);isolatedMixer.seek(0,options.timeSec);}
-  const packets=prepareDrawPackets(isolated);
+  const packets=prepareDrawPackets(isolated,{...this.opts.geometry,...(clip?{clipId:clip}:{}),timeSec:options.timeSec});
   try{
    this.renderer.render(packets,viewport);
    const gl=this.canvas.getContext('webgl2');requireCondition(gl,'UNSUPPORTED_SEMANTIC_FEATURE','WebGL2 unavailable for capture');
