@@ -23,13 +23,13 @@ for(const [file,name] of srcFiles){
  if(name===basename(exe)&&platform!=='windows-x64')await chmod(join(output,name),0o755);
  hashes.push(`${createHash('sha256').update(contents).digest('hex')}  ${name}`);
 }
-const version={nativeVersion:'0.1.0',targetRelease:'v0.16.1',abiVersion:1,protocolVersion:1,
+const version={nativeVersion:'0.1.0',targetRelease:'v0.16.2',abiVersion:1,protocolVersion:1,
  platform,createdFrom:process.env['GITHUB_SHA']??'local',published:false};
 await writeFile(join(output,'version.json'),JSON.stringify(version,null,2)+'\n');
 const meta=await readFile(join(output,'version.json'));
 hashes.push(`${createHash('sha256').update(meta).digest('hex')}  version.json`);
 await writeFile(join(output,'SHA256SUMS'),hashes.join('\n')+'\n');
-const stem=`riglyph-native-v0.16.1-${platform}`;
+const stem=`riglyph-native-v0.16.2-${platform}`;
 const parent=resolve('native/dist');
 let archive;
 if(platform==='windows-x64'){

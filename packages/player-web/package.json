@@ -1,6 +1,6 @@
 {
   "name": "@riglyph/player-web",
-  "version": "0.16.1",
+  "version": "0.16.2",
   "type": "module",
   "license": "MIT",
   "description": "Browser player for Riglyph IR scenes with camera and playback controls",
@@ -22,9 +22,9 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@riglyph/core": "0.16.1",
-    "@riglyph/runtime": "0.16.1",
-    "@riglyph/renderer-webgl2": "0.16.1"
+    "@riglyph/core": "0.16.2",
+    "@riglyph/runtime": "0.16.2",
+    "@riglyph/renderer-webgl2": "0.16.2"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

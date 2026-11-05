@@ -1,6 +1,6 @@
 {
   "name": "@riglyph/importer-spine-4.1",
-  "version": "0.16.1",
+  "version": "0.16.2",
   "type": "module",
   "license": "MIT",
   "description": "Build-time import adapter for Spine Binary 4.1.23 into Riglyph IR",
@@ -22,8 +22,8 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@riglyph/core": "0.16.1",
-    "@riglyph/importer-sdk": "0.16.1"
+    "@riglyph/core": "0.16.2",
+    "@riglyph/importer-sdk": "0.16.2"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.16.2 — Geometry and clipping fixes
+
+- Correct selective transform inheritance under nonuniform scale, reflection and shear.
+- Harden shared clipping validation and triangulation; preserve strict defaults and add explicit compatible even-odd coverage with diagnostics.
+- Add public geometry policy callbacks and CLI `--clipping-policy` / `--debug-geometry` options.
+- Verify complete dynamic clipping sequences across JS, WebGL2 and Rust; fix Chromium/Ubuntu mirror CI installation stalls.
+- Retain Spine Binary 4.1.23, IR 1.0.0, native 0.1.0, ABI1 and protocol1. See [release notes](docs/releases/v0.16.2.md) for source-geometry limitations and validation.
+
 ## 0.16.0 — Spine 4.1 Constraint Completion (release candidate)
 
 - Complete World/Local × Absolute/Relative Transform Constraints and six independent mixing channels (A19).

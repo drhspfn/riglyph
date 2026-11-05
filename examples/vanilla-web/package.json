@@ -7,9 +7,9 @@
     "start": "node serve.mjs"
   },
   "dependencies": {
-    "@riglyph/core": "file:../../release-packages/riglyph-core-0.16.0.tgz",
-    "@riglyph/runtime": "file:../../release-packages/riglyph-runtime-0.16.0.tgz",
-    "@riglyph/renderer-webgl2": "file:../../release-packages/riglyph-renderer-webgl2-0.16.0.tgz",
-    "@riglyph/player-web": "file:../../release-packages/riglyph-player-web-0.16.0.tgz"
+    "@riglyph/core": "file:../../release-packages/riglyph-core-0.16.2.tgz",
+    "@riglyph/runtime": "file:../../release-packages/riglyph-runtime-0.16.2.tgz",
+    "@riglyph/renderer-webgl2": "file:../../release-packages/riglyph-renderer-webgl2-0.16.2.tgz",
+    "@riglyph/player-web": "file:../../release-packages/riglyph-player-web-0.16.2.tgz"
   }
 }
