@@ -62,7 +62,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           # The Azure mirror can stall individual archives for minutes on hosted runners.
-          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' /etc/apt/sources.list.d/ubuntu.sources
+          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' /etc/apt/sources.list.d/ubuntu.sources /etc/apt/apt-mirrors.txt
           sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Install FFmpeg / ffprobe on Windows
         if: runner.os == 'Windows'
@@ -100,7 +100,7 @@ jobs:
           name: riglyph-native-${{ matrix.platform }}
           path: |
             native/dist/${{ matrix.platform }}/
-            native/dist/riglyph-native-v0.16.1-${{ matrix.platform }}.*
+            native/dist/riglyph-native-v0.16.2-${{ matrix.platform }}.*
           if-no-files-found: error
   publish-release:
     if: github.event_name == 'release' && github.event.action == 'published'
@@ -119,11 +119,11 @@ jobs:
           TAG: ${{ github.event.release.tag_name }}
         shell: bash
         run: |
-          test "$TAG" = "v0.16.1"
+          test "$TAG" = "v0.16.2"
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY"
           shopt -s globstar nullglob
-          archives=(release-assets/**/riglyph-native-v0.16.1-*.tar.gz release-assets/**/riglyph-native-v0.16.1-*.zip)
-          checksums=(release-assets/**/riglyph-native-v0.16.1-*.sha256)
+          archives=(release-assets/**/riglyph-native-v0.16.2-*.tar.gz release-assets/**/riglyph-native-v0.16.2-*.zip)
+          checksums=(release-assets/**/riglyph-native-v0.16.2-*.sha256)
           test "${#archives[@]}" -eq 3
           test "${#checksums[@]}" -eq 3
           # gh release upload without --clobber refuses duplicates; no npm publication.

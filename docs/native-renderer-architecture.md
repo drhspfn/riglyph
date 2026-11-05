@@ -12,7 +12,7 @@ LOAD_TEXTURE fields: uint32 id/width/height, uint8 premultiplied, uint8 wrapU (0
 
 RENDER fields: uint32 width/height; 8 float64 values for viewport (left,bottom,width,height) and straight clear RGBA; uint8 sampling (0 nearest, 1 linear), 3 reserved zero bytes; uint32 packet count. Each ordered packet: uint32 texture ID, uint8 blend (0 normal,1 additive,2 multiply,3 screen), uint8 PMA flag, uint16 reserved, four float64 light RGBA, three float64 dark RGB, uint32 vertex count (divisible by three), and packed interleaved float32 [x,y,u,v] per vertex. Pre-clipped triangles and atlas rotation/trim UVs come from the established TypeScript DrawPacket generator. No per-pixel JSON.
 
-Response: uint32 LE byte length, uint8 status (0 success, 1 UTF-8 error), RGBA8 pixels on success. Protocol and ABI are separately versioned from native 0.1.0 and package 0.16.0; target release is v0.16.1, not yet published.
+Response: uint32 LE byte length, uint8 status (0 success, 1 UTF-8 error), RGBA8 pixels on success. Protocol and ABI are separately versioned from native 0.1.0 and package 0.16.2.
 
 ## Ownership, threading and budgets
 

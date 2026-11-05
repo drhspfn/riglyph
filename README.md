@@ -12,7 +12,7 @@ Convert supported source assets into a portable intermediate representation, the
 
 </div>
 
-> **Version 0.16.0 · early preview.** The API is evolving. Support is currently limited to the documented input profile; see [compatibility](docs/compatibility.md).
+> **Version 0.16.2 · early preview.** The API is evolving. Support is currently limited to the documented input profile; see [compatibility](docs/compatibility.md).
 
 ## What it does
 
@@ -24,7 +24,7 @@ Riglyph is not affiliated with or endorsed by Esoteric Software. “Spine” is 
 
 ## Quick start
 
-After the eight packages are published:
+Install the published packages:
 
 ```sh
 npm install @riglyph/player-web
@@ -73,10 +73,11 @@ player.setCamera({ mode: 'fit-scene', padding: 1 });
 | [`@riglyph/runtime`](packages/runtime) | Version-neutral skeleton instance, tracks and playback |
 | [`@riglyph/renderer-webgl2`](packages/renderer-webgl2) | Browser GPU renderer and shared drawing packets |
 | [`@riglyph/renderer-cpu`](packages/renderer-cpu) | Software rendering and snapshot verification |
+| [`@riglyph/renderer-native`](packages/renderer-native) | Optional Rust CPU renderer bridge |
 | [`@riglyph/player-web`](packages/player-web) | Asset loading, animation controls and camera API |
 | [`@riglyph/cli`](packages/cli) | Probe, import, convert, validate, inspect and snapshot |
 
-All eight packages are versioned `0.16.0` together. The root project is private to npm; only packages are publishable. IR schema is independently versioned (`1.0.0`).
+All nine packages are versioned `0.16.2` together. The root project is private to npm; only packages are publishable. IR schema is independently versioned (`1.0.0`).
 
 ## Develop locally
 
@@ -141,5 +142,5 @@ See [native installation](docs/native-renderer.md),
 [architecture and protocol](docs/native-renderer-architecture.md),
 [C ABI](docs/native-renderer-ffi.md), and
 [controlled benchmarks](docs/native-renderer-performance.md). Native implementation
-v0.1.0, ABI1 and protocol1 are separate from the target v0.16.1 release.
-No release or npm publication occurs as part of A22.
+v0.1.0, ABI1 and protocol1 are separate from the v0.16.2 package release.
+See [v0.16.2 release notes](docs/releases/v0.16.2.md) for geometry fixes and compatibility limits.
