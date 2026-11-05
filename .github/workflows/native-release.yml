@@ -62,7 +62,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           # The Azure mirror can stall individual archives for minutes on hosted runners.
-          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' /etc/apt/sources.list.d/ubuntu.sources
+          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' /etc/apt/sources.list.d/ubuntu.sources /etc/apt/apt-mirrors.txt
           sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Install FFmpeg / ffprobe on Windows
         if: runner.os == 'Windows'
