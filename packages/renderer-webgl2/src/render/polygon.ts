@@ -52,6 +52,7 @@ export function inspectPolygon(polygon:readonly P[]):PolygonReport{
    add({classification:s1===0&&s2===0?'collinear-overlap':'edge-touch',edges:[i,j]});
  }
  const signedArea=polygonArea(polygon);
+ requireCondition(Number.isFinite(signedArea),'INVALID_TOPOLOGY','Clipping polygon area exceeds numeric range');
  if(signedArea===0&&!issues.length)add({classification:'zero-area',edges:[]});
  return {vertexCount:polygon.length,signedArea,winding:signedArea>0?'ccw':signedArea<0?'cw':'degenerate',issues};
 }

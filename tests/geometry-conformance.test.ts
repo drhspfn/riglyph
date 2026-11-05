@@ -25,6 +25,7 @@ test('strict rejects crossings, touches, overlapping edges, duplicates and zero 
 });
 test('geometry rejects nonfinite inputs and excessive vertices before decomposition',()=>{
  assert.throws(()=>triangulatePolygon(points([[0,0],[Infinity,1],[0,1]])),/Non-finite/);
+ assert.throws(()=>triangulatePolygon(points([[0,0],[1e200,0],[0,1e200]])),/numeric range/);
  assert.throws(()=>triangulatePolygon(Array.from({length:4097},(_,i)=>({x:i,y:i%2,u:0,v:0}))),
   e=>e instanceof EngineError&&e.code==='LIMIT_EXCEEDED');
 });

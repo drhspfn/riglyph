@@ -174,3 +174,37 @@ screenshots and diagnostics containing only self-authored data. CI covers Node
 22/24 on Linux/Windows, native platforms and actual Chromium integration.
 Private Hiyuki verification supplements public synthetic CI; private assets
 must never be required by a public test.
+
+## Measured costs
+
+One local Windows/Node 24 run, 120 frames at 512×512, four Rust threads,
+nearest sampling, PNG compression 6. A private observer timed the same packet
+implementation and asserted its output equal to the canonical implementation;
+Rust's existing raster counter was observed without changing RGP1.
+
+| Stage | Mean ms/frame | Maximum ms/frame |
+| --- | ---: | ---: |
+| Animation/constraints | 1.28 | 5.11 |
+| Mesh/clipping world vertices | 0.76 | 2.62 |
+| Mask decomposition | 0.09 | 1.47 |
+| Triangle clipping | 0.55 | 6.03 |
+| Other packet work (including region vertices/UVs/allocation) | 3.96 | 10.61 |
+| Native request serialization | 0.83 | 5.67 |
+| Native transport/protocol residual | 3.34 | 35.26 |
+| Rust rasterization | 10.21 | 12.00 |
+| JS rasterization | 69.09 | 258.60 |
+| PNG encoding | 10.67 | 11.88 |
+
+Transport residual is round-trip time minus serialization and the Rust counter;
+it includes process scheduling, protocol decoding and initial texture upload,
+not just wire transfer. H.264 encoding of the prepared 120 RGBA frames took
+713 ms including process startup and output verification. The mask has 23
+vertices; compatibility decomposition has 94 triangles at the failing sample;
+the largest full-scene packet set has 5797 triangles.
+
+An alternating, warmed packet-only comparison on the 119 valid poses (1190
+samples per implementation) measured median 1.889 ms before and 1.966 ms after,
+about 4.1% extra packet cost for strict robustness. The invalid sample is excluded
+from this comparison because the old implementation throws. These are local
+measurements, not CI performance thresholds. The supplied 209-second log lacks
+matched resolution/backend parameters, so no speedup against that log is claimed.
