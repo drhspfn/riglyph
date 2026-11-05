@@ -57,6 +57,14 @@ jobs:
         run: xvfb-run -a npm run smoke:packages
       - name: G3 CPU/WebGL2 synthetic pixel parity
         run: xvfb-run -a python scripts/browser-g3-pixels.py
+      - name: Full dynamic clipping geometry conformance
+        run: xvfb-run -a python scripts/browser-geometry.py
+      - name: Synthetic geometry evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geometry-browser
+          path: test-output/geometry-browser/
       - name: G9 and G10 playback in Chromium
         run: |
           xvfb-run -a python scripts/browser-g9.py

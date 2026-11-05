@@ -23,6 +23,11 @@ test('strict rejects crossings, touches, overlapping edges, duplicates and zero 
  assert.equal(inspectPolygon(points(cases[0]!)).issues[0]!.classification,'edge-crossing');
  assert.deepEqual(inspectPolygon(points(cases[0]!)).issues[0]!.intersection,[2,2]);
 });
+test('geometry rejects nonfinite inputs and excessive vertices before decomposition',()=>{
+ assert.throws(()=>triangulatePolygon(points([[0,0],[Infinity,1],[0,1]])),/Non-finite/);
+ assert.throws(()=>triangulatePolygon(Array.from({length:4097},(_,i)=>({x:i,y:i%2,u:0,v:0}))),
+  e=>e instanceof EngineError&&e.code==='LIMIT_EXCEEDED');
+});
 test('near crossings are distinguished without a world-unit epsilon',()=>{
  for(const scale of [1e-12,1,1e12]){
   const p=points([[0,0],[4,0],[4,4],[2,1e-10],[0,4]].map(v=>v.map(x=>x*scale)));
