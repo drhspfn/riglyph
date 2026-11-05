@@ -152,7 +152,7 @@ def main():
             if not ready:
                 raise RuntimeError(f'{name} production HTTP server could not start')
         with sync_playwright() as pw:
-            browser = pw.chromium.launch(executable_path=shutil.which('chromium'), headless=True,
+            browser = pw.chromium.launch(executable_path=os.environ.get('CHROMIUM_PATH') or shutil.which('chromium'), headless=True,
                 args=['--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--use-gl=angle', '--use-angle=swiftshader'])
             try:
                 results = [check_page(browser, name, port) for name, _, _, port in apps]
