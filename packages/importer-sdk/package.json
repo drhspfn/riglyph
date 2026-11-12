@@ -1,6 +1,6 @@
 {
   "name": "@riglyph/importer-sdk",
-  "version": "0.16.2",
+  "version": "0.16.3",
   "type": "module",
   "license": "MIT",
   "description": "Versioned importer registry and authoring SDK for Riglyph skeleton assets",
@@ -22,7 +22,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@riglyph/core": "0.16.2"
+    "@riglyph/core": "0.16.3"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -167,7 +167,9 @@ export function decodeSpine41(bytes:Uint8Array,source='memory'):Spine41Wire {
  const animations=section('animations',()=>{
   const total=count('animation count'),items:WireAnimation[]=[];
   for(let a=0;a<total;a++){
-   const name=string('animation name'),declaredTimelines=count('declared timeline count'),timelines:WireTimeline[]=[];
+   // Animation-wide capacity hint, not a payload count. Group counts delimit the timelines.
+   // Keep the original value in wire diagnostics and retain the existing resource bound.
+   const name=string('animation name'),declaredTimelines=count('timeline capacity hint'),timelines:WireTimeline[]=[];
    const push=(kind:WireTimeline['kind'],target:WireTimeline['target'],property:string,frames:WireFrame[],extra:Partial<WireTimeline>={})=>{
     check(timelines.length<MAX_ITEMS,'LIMIT_EXCEEDED','Too many timelines in animation');timelines.push({kind,target,property,frames,...extra});
    };
@@ -251,7 +253,6 @@ export function decodeSpine41(bytes:Uint8Array,source='memory'):Spine41Wire {
      f.push({time,value:{definitionIndex:index,int,float,string:str,...extra}});
     }push('event',null,'fire',f);
    }
-   check(timelines.length===declaredTimelines,'INVALID_TIMELINE',`Animation ${name}: declared ${declaredTimelines} timelines but decoded ${timelines.length}`);
    let duration=0;for(const t of timelines)for(const frame of t.frames){check(frame.time>=0&&Number.isFinite(frame.time),'INVALID_TIMELINE','Invalid keyframe time');duration=Math.max(duration,frame.time);}
    items.push({name,declaredTimelines,timelines,duration});
   }return items;
