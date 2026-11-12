@@ -2,7 +2,7 @@
 
 Build-time import adapter for Spine Binary 4.1.23 into Riglyph IR.
 
-**Version:** 0.15.1 (pre-1.0 preview). Part of the [Riglyph toolkit](https://github.com/drhspfn/riglyph).
+**Version:** 0.16.3 (pre-1.0 preview). Part of the [Riglyph toolkit](https://github.com/drhspfn/riglyph).
 
 ## Installation
 

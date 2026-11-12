@@ -1,6 +1,6 @@
 {
   "name": "@riglyph/cli",
-  "version": "0.16.2",
+  "version": "0.16.3",
   "type": "module",
   "license": "MIT",
   "description": "Riglyph command-line importer, converter, inspector and snapshot utility",
@@ -27,13 +27,13 @@
     "use-skeleton": "./dist/cli/main.js"
   },
   "dependencies": {
-    "@riglyph/core": "0.16.2",
-    "@riglyph/runtime": "0.16.2",
-    "@riglyph/renderer-webgl2": "0.16.2",
-    "@riglyph/renderer-cpu": "0.16.2",
-    "@riglyph/importer-sdk": "0.16.2",
-    "@riglyph/importer-spine-4.1": "0.16.2",
-    "@riglyph/renderer-native": "0.16.2"
+    "@riglyph/core": "0.16.3",
+    "@riglyph/runtime": "0.16.3",
+    "@riglyph/renderer-webgl2": "0.16.3",
+    "@riglyph/renderer-cpu": "0.16.3",
+    "@riglyph/importer-sdk": "0.16.3",
+    "@riglyph/importer-spine-4.1": "0.16.3",
+    "@riglyph/renderer-native": "0.16.3"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

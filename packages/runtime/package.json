@@ -1,6 +1,6 @@
 {
   "name": "@riglyph/runtime",
-  "version": "0.16.2",
+  "version": "0.16.3",
   "type": "module",
   "license": "MIT",
   "description": "Version-neutral skeletal animation runtime, tracks and animation mixing",
@@ -22,7 +22,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@riglyph/core": "0.16.2"
+    "@riglyph/core": "0.16.3"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

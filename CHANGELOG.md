@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.16.3 — Spine import fix
+
+- Treat the animation-wide timeline value as a capacity hint, allowing valid Spine Binary 4.1.23 imports with differing decoded counts.
+- Preserve structural validation and resource limits; add seven regression tests checked against independent reference observations.
+
 ## 0.16.2 — Geometry and clipping fixes
 
 - Correct selective transform inheritance under nonuniform scale, reflection and shear.

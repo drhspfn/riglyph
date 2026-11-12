@@ -2,7 +2,7 @@
 
 CPU software renderer and snapshot tools for Riglyph scenes.
 
-**Version:** 0.16.2 (pre-1.0 preview). Part of the [Riglyph toolkit](https://github.com/drhspfn/riglyph).
+**Version:** 0.16.3 (pre-1.0 preview). Part of the [Riglyph toolkit](https://github.com/drhspfn/riglyph).
 
 ## Installation
 

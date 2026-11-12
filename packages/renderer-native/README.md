@@ -30,7 +30,7 @@ CLI: `riglyph render character.ir.json --images ./textures --clip idle
 `--backend js` always uses the existing JavaScript rasterizer.
 
 **ABI protocol:** 1 / 1. **Native implementation:** 0.1.0. Independent
-of the Riglyph package version (0.16.2).
+of the Riglyph package version (0.16.3).
 No automatic npm/native releases or version bumps are performed by A22.
 
 See [native renderer](../../docs/native-renderer.md), [architecture](../../docs/native-renderer-architecture.md)

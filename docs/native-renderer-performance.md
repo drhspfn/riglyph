@@ -10,7 +10,7 @@ The script warms up both implementations, runs multiple repeats, and reports p50
 
 Run native export smoke to measure complete PNG and FFmpeg video separately. CI-runners are not Ryzen 5 3600; label results by host. More complex scenes may have greater speedups than the small synthetic fixture. No claim of faster performance on the user's hardware without matched measurements there.
 
-CPU raster backend is independent of the existing animation runtime. Native 0.1.0 / ABI1 / protocol1 remain separately versioned from the v0.16.2 package release.
+CPU raster backend is independent of the existing animation runtime. Native 0.1.0 / ABI1 / protocol1 remain separately versioned from the v0.16.3 package release.
 
 ## Measured CI results — 2026-11-02
 
